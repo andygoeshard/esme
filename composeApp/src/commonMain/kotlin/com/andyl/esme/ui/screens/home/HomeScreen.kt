@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,12 +39,24 @@ fun HomeScreen(
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is HomeEffect.NavigateToEditor -> {
+                    onNavigateToEditor(effect.id)
+                }
+                is HomeEffect.ShowError -> {
+                }
+            }
+        }
+    }
+
     Scaffold(
         containerColor = Color(0xFF0B120E),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    onNavigateToEditor(null)
+                    viewModel.handleIntent(HomeIntent.AddTestNote("", ""))
                 },
                 containerColor = Color(0xFF50C878),
                 contentColor = Color.Black
@@ -60,18 +76,20 @@ fun HomeScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                LazyColumn(
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Adaptive(minSize = 180.dp), // Se adapta al ancho del Mac o el celu
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalItemSpacing = 12.dp
                 ) {
-                    item {
+                    item(span = StaggeredGridItemSpan.FullLine) {
                         Text(
                             text = "Mis Notas",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 12.dp)
                         )
                     }
 

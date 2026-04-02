@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
 
@@ -49,9 +52,20 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
             .launchIn(viewModelScope)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun createNote(title: String, content: String) {
         viewModelScope.launch {
-            repository.saveNote(NoteEntity(title = title, content = content))
+            val newId = Uuid.random().toString()
+
+            val newNote = NoteEntity(
+                id = newId,
+                title = title,
+                content = content,
+                updatedAt = Clock.System.now().toEpochMilliseconds()
+            )
+
+            repository.saveNote(newNote)
+            _effect.trySend(HomeEffect.NavigateToEditor(newId))
         }
     }
 

@@ -74,6 +74,8 @@ kotlin {
             implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
 
             implementation(libs.kotlinx.serialization.json)
+
+            implementation(libs.kotlinx.datetime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

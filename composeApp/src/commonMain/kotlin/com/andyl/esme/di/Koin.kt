@@ -23,8 +23,9 @@ val commonModule = module {
     }
 
     single { get<EsmeDatabase>().noteDao() }
+    single { get<EsmeDatabase>().blockDao() }
 
-    single { NoteRepository(get()) }
+    single { NoteRepository(get(), get()) }
 
     factory { HomeViewModel(get()) }
     factory { EditorViewModel(get()) }

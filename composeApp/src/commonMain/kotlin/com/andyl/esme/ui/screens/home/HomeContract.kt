@@ -16,5 +16,5 @@ sealed interface HomeIntent {
 
 sealed interface HomeEffect {
     data class ShowError(val message: String) : HomeEffect
-    data object NavigateToEditor : HomeEffect
+    data class  NavigateToEditor(val id: String) : HomeEffect
 }
