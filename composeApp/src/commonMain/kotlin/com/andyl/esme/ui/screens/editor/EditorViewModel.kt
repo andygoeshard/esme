@@ -90,8 +90,13 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                         content.startsWith("!!! ") ->
                             EsmeBlock.Priority(blockId, noteId, block.orderIndex, content.removePrefix("!!! "))
 
-                        content.startsWith("$ ") ->
-                            EsmeBlock.Expense(blockId, noteId, block.orderIndex, "Gasto", 0.0)
+                        content.startsWith("$ ") -> {
+                            val remaining = content.removePrefix("$ ").trim()
+                            val initialAmount = remaining.toDoubleOrNull() ?: 0.0
+                            val initialLabel = if (initialAmount == 0.0) remaining else "Gasto"
+
+                            EsmeBlock.Expense(blockId, noteId, block.orderIndex, initialLabel, initialAmount)
+                        }
 
                         content.startsWith("---") ->
                             EsmeBlock.Divider(blockId, noteId, block.orderIndex)

@@ -16,5 +16,5 @@ data class NoteEntity(
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
     val updatedAt: Long = Clock.System.now().toEpochMilliseconds(),
     val isFavorite: Boolean = false,
-    val tags: String = "" // Después lo hacemos más pro con TypeConverters
+    val tags: String = ""
 )
