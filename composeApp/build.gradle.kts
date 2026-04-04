@@ -68,8 +68,6 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)
 
-            implementation(libs.logback)
-
             implementation(libs.jetbrains.navigation3.ui)
             implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
 

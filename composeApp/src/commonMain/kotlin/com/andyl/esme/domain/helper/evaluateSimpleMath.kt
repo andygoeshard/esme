@@ -39,7 +39,7 @@ fun processSmartTokens(input: String): String {
     }
 
     // 2. Calculadora: (10+10)= -> 20
-    val calcRegex = Regex("""\((\d+[\+\-\*\/]\d+)\)=""")
+    val calcRegex = Regex("""\(([\d\. ]+[\+\-\*\/][\d\. ]+)\)=""")
     calcRegex.findAll(output).forEach { match ->
         val expression = match.groups[1]?.value ?: ""
         val result = evaluateSimpleMath(expression)

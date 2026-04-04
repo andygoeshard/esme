@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun EsmeTextFieldBlock(
+    modifier: Modifier = Modifier,
     content: String,
     onContentChange: (String) -> Unit,
     onNextBlock: () -> Unit,
@@ -25,7 +26,7 @@ fun EsmeTextFieldBlock(
             else onContentChange(it)
         },
         visualTransformation = transformer,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,

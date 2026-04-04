@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun EsmePriorityBlock(
+    modifier: Modifier = Modifier,
     content: String,
     onContentChange: (String) -> Unit
 ) {
@@ -43,7 +44,7 @@ fun EsmePriorityBlock(
             TextField(
                 value = content,
                 onValueChange = onContentChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,

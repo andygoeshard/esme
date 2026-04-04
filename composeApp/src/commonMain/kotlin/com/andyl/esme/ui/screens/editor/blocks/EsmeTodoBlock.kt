@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun EsmeTodoBlock(
+    modifier: Modifier = Modifier,
     content: String,
     isChecked: Boolean,
     onContentChange: (String) -> Unit,
@@ -49,7 +50,7 @@ fun EsmeTodoBlock(
             value = content,
             onValueChange = onContentChange,
             placeholder = { Text("Tarea...", color = Color.Gray.copy(0.5f), fontSize = 18.sp) },
-            modifier = Modifier.weight(1f),
+            modifier = modifier.weight(1f),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,

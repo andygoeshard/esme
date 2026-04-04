@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
+import com.andyl.esme.domain.helper.processSmartTokens
 import com.andyl.esme.domain.mapper.EsmeBlockMapper
 import com.andyl.esme.domain.model.EsmeBlock
 import kotlinx.coroutines.FlowPreview
@@ -48,7 +49,6 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             is EditorIntent.LoadNote -> loadNote(intent.id)
             is EditorIntent.UpdateTitle -> _state.update { it.copy(title = intent.newTitle) }
 
-            // 📝 Actualización de un bloque ya existente
             is EditorIntent.UpdateBlock -> {
                 _state.update { currentState ->
                     val newBlocks = currentState.blocks.map {
@@ -59,21 +59,21 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             }
 
             is EditorIntent.UpdateContent -> {
-                updateBlockAndCheckMutation(intent.blockId, intent.newContent)
+                val processedContent = processSmartTokens(intent.newContent)
+                updateBlockAndCheckMutation(intent.blockId, processedContent)
             }
 
-            // ➕ Añadir bloque nuevo (Ej: después de un Enter)
             is EditorIntent.AddBlock -> {
                 addNewBlock(intent.afterBlockId)
             }
 
-            // 🗑️ Borrar bloque
             is EditorIntent.DeleteBlock -> {
                 deleteBlock(intent.blockId)
             }
 
             is EditorIntent.SaveNote -> saveCurrentNote()
             is EditorIntent.DeleteNote -> removeNote()
+            is EditorIntent.MoveBlock -> moveBlock(intent.fromIndex, intent.toIndex)
         }
     }
 
@@ -81,28 +81,59 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         val noteId = _state.value.id ?: return
 
         _state.update { currentState ->
+            var mutationHappened = false
             val updatedList = currentState.blocks.map { block ->
                 if (block.id == blockId && block is EsmeBlock.Text) {
                     when {
-                        content.startsWith("- [ ] ") ->
-                            EsmeBlock.Todo(blockId, noteId, block.orderIndex, content.removePrefix("- [ ] "), false)
+                        content.startsWith("- [ ] ") -> {
+                            mutationHappened = true
+                            EsmeBlock.Todo(
+                                blockId,
+                                noteId,
+                                block.orderIndex,
+                                content.removePrefix("- [ ] "),
+                                false
+                            )
+                        }
 
-                        content.startsWith("!!! ") ->
-                            EsmeBlock.Priority(blockId, noteId, block.orderIndex, content.removePrefix("!!! "))
+                        content.startsWith("!!! ") -> {
+                            mutationHappened = true
+                            EsmeBlock.Priority(
+                                blockId,
+                                noteId,
+                                block.orderIndex,
+                                content.removePrefix("!!! ")
+                            )
+                        }
 
                         content.startsWith("$ ") -> {
-                            val remaining = content.removePrefix("$ ").trim()
-                            val initialAmount = remaining.toDoubleOrNull() ?: 0.0
-                            val initialLabel = if (initialAmount == 0.0) remaining else "Gasto"
+                            mutationHappened = true
+                            val raw = content.removePrefix("$ ").trim()
+                            val parts = raw.split(" ", limit = 2)
+                            val possibleAmount = parts.getOrNull(0)?.toDoubleOrNull() ?: 0.0
+                            val description = if (parts.size > 1) parts[1] else if (possibleAmount == 0.0) raw else "Gasto"
 
-                            EsmeBlock.Expense(blockId, noteId, block.orderIndex, initialLabel, initialAmount)
+                            EsmeBlock.Expense(
+                                id = blockId,
+                                noteId = noteId,
+                                orderIndex = block.orderIndex,
+                                description = description,
+                                amount = possibleAmount
+                            )
                         }
 
                         content.startsWith("---") ->
                             EsmeBlock.Divider(blockId, noteId, block.orderIndex)
 
-                        content.startsWith("> ") ->
-                            EsmeBlock.Quote(blockId, noteId, block.orderIndex, content.removePrefix("> "))
+                        content.startsWith("> ") -> {
+                            mutationHappened = true
+                            EsmeBlock.Quote(
+                                blockId,
+                                noteId,
+                                block.orderIndex,
+                                content.removePrefix("> ")
+                            )
+                        }
 
                         else -> block.copy(content = content)
                     }
@@ -110,18 +141,22 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                     block
                 }
             }
-            currentState.copy(blocks = reindex(updatedList))
+            currentState.copy(
+                blocks = reindex(updatedList),
+                focusedBlockId = if (mutationHappened) blockId else currentState.focusedBlockId
+            )
         }
     }
-
     private fun addNewBlock(afterBlockId: String) {
         val noteId = _state.value.id ?: return
+        val newBlockId = Uuid.random().toString()
+
         _state.update { currentState ->
             val index = currentState.blocks.indexOfFirst { it.id == afterBlockId }
             val newList = currentState.blocks.toMutableList()
 
             val newBlock = EsmeBlock.Text(
-                id = Uuid.random().toString(),
+                id = newBlockId,
                 noteId = noteId,
                 orderIndex = index + 1,
                 content = ""
@@ -130,14 +165,32 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             if (index != -1) newList.add(index + 1, newBlock)
             else newList.add(newBlock)
 
-            currentState.copy(blocks = reindex(newList))
+            currentState.copy(
+                blocks = reindex(newList),
+                focusedBlockId = newBlockId
+            )
+        }
+    }
+    private fun moveBlock(fromIndex: Int, toIndex: Int) {
+        val blocks = _state.value.blocks
+        if (fromIndex !in blocks.indices || toIndex !in blocks.indices || fromIndex == toIndex) return
+
+        _state.update { currentState ->
+            val newList = currentState.blocks.toMutableList()
+            val item = newList.removeAt(fromIndex)
+            newList.add(toIndex, item)
+
+            // Al mover, mantenemos el foco en el bloque que se desplazó
+            currentState.copy(
+                blocks = reindex(newList),
+                focusedBlockId = item.id
+            )
         }
     }
     private fun reindex(list: List<EsmeBlock>): List<EsmeBlock> {
         val noteId = _state.value.id ?: ""
         val mutableList = list.toMutableList()
 
-        // 🔥 Si el último no es texto, agregamos uno vacío de seguridad
         if (mutableList.isEmpty() || mutableList.last() !is EsmeBlock.Text) {
             mutableList.add(
                 EsmeBlock.Text(
@@ -164,9 +217,17 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
 
     private fun deleteBlock(blockId: String) {
         _state.update { currentState ->
-            if (currentState.blocks.size <= 1) return@update currentState // No dejamos la nota vacía
+            if (currentState.blocks.size <= 1) return@update currentState
+
+            val index = currentState.blocks.indexOfFirst { it.id == blockId }
             val newList = currentState.blocks.filterNot { it.id == blockId }
-            currentState.copy(blocks = newList)
+
+            val nextFocusId = if (index > 0) newList[index - 1].id else newList.firstOrNull()?.id
+
+            currentState.copy(
+                blocks = reindex(newList),
+                focusedBlockId = nextFocusId
+            )
         }
     }
 
@@ -189,7 +250,8 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                         blocks = domainBlocks.ifEmpty {
                             listOf(EsmeBlock.Text(Uuid.random().toString(), id, 0, ""))
                         },
-                        isSaving = false
+                        isSaving = false,
+                        focusedBlockId = domainBlocks.firstOrNull()?.id
                     )
                 }
             }

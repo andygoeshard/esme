@@ -6,8 +6,10 @@ data class EditorState(
     val id: String? = null,
     val title: String = "",
     val blocks: List<EsmeBlock> = emptyList(),
+    val focusedBlockId: String? = null,
     val isSaving: Boolean = false,
-    val lastSaved: Long? = null
+    val lastSaved: Long? = null,
+    val isReordering: Boolean = false
 )
 
 sealed interface EditorIntent {
@@ -20,6 +22,7 @@ sealed interface EditorIntent {
     data class UpdateBlock(val block: EsmeBlock) : EditorIntent
     data class AddBlock(val afterBlockId: String) : EditorIntent
     data class DeleteBlock(val blockId: String) : EditorIntent
+    data class MoveBlock(val fromIndex: Int, val toIndex: Int) : EditorIntent
 }
 
 sealed interface EditorEffect {

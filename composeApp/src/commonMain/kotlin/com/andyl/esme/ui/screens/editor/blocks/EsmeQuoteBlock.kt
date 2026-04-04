@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun EsmeQuoteBlock(
+    modifier: Modifier = Modifier,
     content: String,
     onContentChange: (String) -> Unit
 ) {
@@ -35,6 +36,7 @@ fun EsmeQuoteBlock(
             .padding(start = 16.dp)
     ) {
         TextField(
+            modifier = modifier,
             value = content,
             onValueChange = onContentChange,
             colors = TextFieldDefaults.colors(

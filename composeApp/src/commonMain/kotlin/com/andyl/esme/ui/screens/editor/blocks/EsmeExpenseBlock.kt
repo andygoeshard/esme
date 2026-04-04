@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun EsmeExpenseBlock(
+    modifier: Modifier = Modifier,
     label: String,
     amount: Double,
     onLabelChange: (String) -> Unit,
@@ -44,7 +45,7 @@ fun EsmeExpenseBlock(
             value = label,
             onValueChange = onLabelChange,
             placeholder = { Text("Concepto...", color = Color.Gray) },
-            modifier = Modifier.weight(1f),
+            modifier = modifier.weight(1f),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -56,8 +57,9 @@ fun EsmeExpenseBlock(
 
         TextField(
             value = if (amount == 0.0) "" else amount.toString(),
-            onValueChange = {
-                val newAmount = it.toDoubleOrNull() ?: 0.0
+            onValueChange = { input ->
+                val cleanInput = input.replace(",", ".")
+                val newAmount = cleanInput.toDoubleOrNull() ?: 0.0
                 onAmountChange(newAmount)
             },
             placeholder = { Text("0.00", color = Color.Gray) },
