@@ -50,7 +50,8 @@ fun EsmePriorityBlock(
                     unfocusedContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.White
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
                 ),
                 textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold)
             )

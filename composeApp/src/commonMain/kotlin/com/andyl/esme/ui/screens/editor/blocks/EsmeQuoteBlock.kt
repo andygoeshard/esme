@@ -43,7 +43,8 @@ fun EsmeQuoteBlock(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                unfocusedIndicatorColor = Color.Transparent,
+                unfocusedTextColor = Color.White
             ),
             textStyle = TextStyle(
                 fontSize = 18.sp,

@@ -57,7 +57,8 @@ fun EsmeTodoBlock(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 cursorColor = Color(0xFF50C878),
-                focusedTextColor = if (isChecked) Color.Gray else Color.White
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             ),
             textStyle = TextStyle(
                 fontSize = 18.sp,

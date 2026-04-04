@@ -2,9 +2,13 @@ package com.andyl.esme.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +19,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,8 +31,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andyl.esme.ui.screens.home.components.HomeNoteItem
 import org.koin.compose.viewmodel.koinViewModel
@@ -54,13 +61,13 @@ fun HomeScreen(
     Scaffold(
         containerColor = Color(0xFF0B120E),
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    viewModel.handleIntent(HomeIntent.AddTestNote("", ""))
-                },
+            ExtendedFloatingActionButton( // 🚀 Más fachero que el FAB común
+                onClick = { viewModel.handleIntent(HomeIntent.AddTestNote("", "")) },
                 containerColor = Color(0xFF50C878),
-                contentColor = Color.Black
-            ) { Icon(imageVector = Icons.Default.Add, contentDescription = "Agregar") }
+                contentColor = Color.Black,
+                icon = { Icon(Icons.Default.Add, null) },
+                text = { Text("Nueva Nota", fontWeight = FontWeight.Bold) }
+            )
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -70,31 +77,47 @@ fun HomeScreen(
                     color = Color(0xFF50C878)
                 )
             } else if (state.notes.isEmpty()) {
-                Text(
-                    text = "No hay notas todavía...",
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                // --- ESTADO VACÍO CON ONDA ---
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Text("Esme está vacía.", color = Color.Gray, fontWeight = FontWeight.Medium)
+                    Text("Empezá a escribir algo épico.", color = Color.Gray.copy(0.5f), fontSize = 12.sp)
+                }
             } else {
                 LazyVerticalStaggeredGrid(
-                    columns = StaggeredGridCells.Adaptive(minSize = 180.dp), // Se adapta al ancho del Mac o el celu
+                    columns = StaggeredGridCells.Adaptive(minSize = 170.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
                     item(span = StaggeredGridItemSpan.FullLine) {
-                        Text(
-                            text = "Mis Notas",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
+                        // --- HEADER CON MÁS PERSONALIDAD ---
+                        Column(modifier = Modifier.padding(bottom = 24.dp, top = 8.dp)) {
+                            Text(
+                                text = "Mis Notas",
+                                style = TextStyle(
+                                    fontSize = 34.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    letterSpacing = (-1).sp
+                                )
+                            )
+                            Text(
+                                text = "${state.notes.size} notas guardadas",
+                                color = Color(0xFF50C878).copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
 
                     items(state.notes, key = { it.id }) { note ->
                         HomeNoteItem(
+                            modifier = Modifier.animateItem(), // ✨ Animación cuando borrás/agregás
                             note = note,
                             onClick = { onNavigateToEditor(note.id) },
                             onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(note)) }

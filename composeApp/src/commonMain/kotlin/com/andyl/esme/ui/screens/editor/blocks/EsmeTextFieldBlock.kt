@@ -33,7 +33,8 @@ fun EsmeTextFieldBlock(
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             cursorColor = Color(0xFF50C878),
-            focusedTextColor = Color.White.copy(0.9f)
+            focusedTextColor = Color.White.copy(0.9f),
+            unfocusedTextColor = Color.White
         ),
         textStyle = TextStyle(fontSize = 18.sp, lineHeight = 26.sp)
     )

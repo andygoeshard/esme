@@ -51,7 +51,8 @@ fun EsmeExpenseBlock(
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = Color.White
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             )
         )
 
@@ -71,7 +72,8 @@ fun EsmeExpenseBlock(
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = Color(0xFF50C878)
+                focusedTextColor = Color(0xFF50C878),
+                unfocusedTextColor = Color.White
             )
         )
 
