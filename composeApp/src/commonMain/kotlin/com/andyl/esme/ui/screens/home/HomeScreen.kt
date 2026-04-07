@@ -56,63 +56,73 @@ fun HomeScreen(
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // Manejo de Navegación y Errores
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is HomeEffect.NavigateToEditor -> {
-                    onNavigateToEditor(effect.id)
-                }
-                is HomeEffect.ShowError -> {
-                }
+                is HomeEffect.NavigateToEditor -> onNavigateToEditor(effect.id)
+                is HomeEffect.ShowError -> { /* Podés meter un Toast acá si querés */ }
             }
         }
     }
 
     Scaffold(
-            containerColor = Color(0xFF0B120E),
-            topBar = {
-                TopAppBar(
-                    title = {
-                        if (state.isSearchVisible) {
-                            // 🎯 BUSCADOR ACTIVO
-                            TextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.handleIntent(HomeIntent.UpdateSearchQuery(it)) },
-                                placeholder = { Text("Buscar...", color = Color.Gray) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    cursorColor = Color(0xFF50C878),
-                                    focusedTextColor = Color.White
-                                ),
-                                singleLine = true
-                            )
-                        } else {
+        containerColor = Color(0xFF0B120E),
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (state.isSearchVisible) {
+                        TextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.handleIntent(HomeIntent.UpdateSearchQuery(it)) },
+                            placeholder = { Text("Buscar en el cerebro...", color = Color.Gray, fontSize = 16.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                cursorColor = Color(0xFF50C878),
+                                focusedTextColor = Color.White
+                            ),
+                            singleLine = true
+                        )
+                    } else {
+                        Column {
                             Text(
                                 "Mis Notas",
                                 color = Color.White,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = (-1).sp
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = (-1).sp
+                                )
                             )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                    actions = {
-                        IconButton(onClick = {
-                            viewModel.handleIntent(HomeIntent.ToggleSearch(!state.isSearchVisible))
-                        }) {
-                            Icon(
-                                imageVector = if (state.isSearchVisible) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = "Buscar",
-                                tint = Color.White
-                            )
+                            if (state.notes.isNotEmpty()) {
+                                Text(
+                                    "${state.notes.size} notas",
+                                    color = Color(0xFF50C878).copy(0.6f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
-                )
-            },
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                actions = {
+                    IconButton(onClick = {
+                        viewModel.handleIntent(HomeIntent.ToggleSearch(!state.isSearchVisible))
+                    }) {
+                        Icon(
+                            imageVector = if (state.isSearchVisible) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = Color.White
+                        )
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { viewModel.handleIntent(HomeIntent.AddTestNote("", "")) },
@@ -130,16 +140,26 @@ fun HomeScreen(
                     color = Color(0xFF50C878)
                 )
             } else if (state.notes.isEmpty()) {
+                // Estado Vacío / No se encontraron resultados
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                    Icon(
+                        imageVector = if (state.searchQuery.isEmpty()) Icons.Default.Add else Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Color.Gray.copy(0.3f),
+                        modifier = Modifier.size(64.dp)
+                    )
                     Spacer(Modifier.height(16.dp))
-                    Text("Esme está vacía.", color = Color.Gray, fontWeight = FontWeight.Medium)
-                    Text("Empezá a escribir algo épico.", color = Color.Gray.copy(0.5f), fontSize = 12.sp)
+                    Text(
+                        text = if (state.searchQuery.isEmpty()) "Esme está vacía." else "No se encontró nada.",
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             } else {
+                // Grilla de Notas
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Adaptive(minSize = 170.dp),
                     modifier = Modifier.fillMaxSize(),
@@ -149,7 +169,7 @@ fun HomeScreen(
                 ) {
                     items(state.notes, key = { it.id }) { note ->
                         HomeNoteItem(
-                            modifier = Modifier.animateItem(), // ✨ Animación cuando borrás/agregás
+                            modifier = Modifier.animateItem(), // ✨ Animación de reordenamiento/borrado
                             note = note,
                             onClick = { onNavigateToEditor(note.id) },
                             onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(note)) }

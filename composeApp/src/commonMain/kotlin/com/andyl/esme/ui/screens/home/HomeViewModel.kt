@@ -37,7 +37,7 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
 
     fun handleIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadNotes -> { /* Ya se encarga el init */ }
+            is HomeIntent.LoadNotes -> observeNotesWithFilter()
             is HomeIntent.AddTestNote -> createNote(intent.title, intent.content)
             is HomeIntent.DeleteNote -> removeNote(intent.note)
             is HomeIntent.ToggleSearch -> {

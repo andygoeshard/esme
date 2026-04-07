@@ -180,7 +180,6 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             val item = newList.removeAt(fromIndex)
             newList.add(toIndex, item)
 
-            // Al mover, mantenemos el foco en el bloque que se desplazó
             currentState.copy(
                 blocks = reindex(newList),
                 focusedBlockId = item.id
@@ -265,18 +264,27 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            // 1. Guardamos la Nota (el "padre")
+            val fullContent = current.blocks.joinToString("\n") { block ->
+                when (block) {
+                    is EsmeBlock.Text -> block.content
+                    is EsmeBlock.Todo -> if (block.isChecked) "- [x] ${block.content}" else "- [ ] ${block.content}"
+                    is EsmeBlock.Expense -> "$ ${block.amount} ${block.description}"
+                    is EsmeBlock.Priority -> "!!! ${block.content}"
+                    is EsmeBlock.Quote -> "> ${block.content}"
+                    is EsmeBlock.Divider -> "---"
+                    else -> ""
+                }
+            }
+
             repository.saveNote(
                 NoteEntity(
                     id = noteId,
                     title = current.title,
-                    content = current.blocks.filterIsInstance<EsmeBlock.Text>()
-                        .firstOrNull()?.content ?: "", // Usamos el primer texto como preview
+                    content = fullContent,
                     updatedAt = Clock.System.now().toEpochMilliseconds()
                 )
             )
 
-            // 2. Guardamos los Bloques (los "hijos")
             val entities = current.blocks.map { EsmeBlockMapper.toEntity(it) }
             repository.saveBlocks(entities)
 
