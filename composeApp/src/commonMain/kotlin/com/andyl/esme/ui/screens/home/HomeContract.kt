@@ -5,13 +5,17 @@ import com.andyl.esme.data.local.entity.NoteEntity
 data class HomeState(
     val notes: List<NoteEntity> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val isSearchVisible: Boolean = false,
+    val searchQuery: String = "",
+    val error: String? = null,
 )
 
 sealed interface HomeIntent {
     data object LoadNotes : HomeIntent
     data class AddTestNote(val title: String, val content: String) : HomeIntent
     data class DeleteNote(val note: NoteEntity) : HomeIntent
+    data class UpdateSearchQuery(val query: String) : HomeIntent
+    data class ToggleSearch(val isVisible: Boolean) : HomeIntent
 }
 
 sealed interface HomeEffect {

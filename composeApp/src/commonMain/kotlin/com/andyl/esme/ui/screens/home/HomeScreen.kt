@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,13 +19,21 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andyl.esme.ui.screens.home.components.HomeNoteItem
 import org.koin.compose.viewmodel.koinViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToEditor: (String?) -> Unit
@@ -59,9 +69,52 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0B120E),
+            containerColor = Color(0xFF0B120E),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        if (state.isSearchVisible) {
+                            // 🎯 BUSCADOR ACTIVO
+                            TextField(
+                                value = state.searchQuery,
+                                onValueChange = { viewModel.handleIntent(HomeIntent.UpdateSearchQuery(it)) },
+                                placeholder = { Text("Buscar...", color = Color.Gray) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    cursorColor = Color(0xFF50C878),
+                                    focusedTextColor = Color.White
+                                ),
+                                singleLine = true
+                            )
+                        } else {
+                            Text(
+                                "Mis Notas",
+                                color = Color.White,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-1).sp
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                    actions = {
+                        IconButton(onClick = {
+                            viewModel.handleIntent(HomeIntent.ToggleSearch(!state.isSearchVisible))
+                        }) {
+                            Icon(
+                                imageVector = if (state.isSearchVisible) Icons.Default.Close else Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                )
+            },
         floatingActionButton = {
-            ExtendedFloatingActionButton( // 🚀 Más fachero que el FAB común
+            ExtendedFloatingActionButton(
                 onClick = { viewModel.handleIntent(HomeIntent.AddTestNote("", "")) },
                 containerColor = Color(0xFF50C878),
                 contentColor = Color.Black,
@@ -77,7 +130,6 @@ fun HomeScreen(
                     color = Color(0xFF50C878)
                 )
             } else if (state.notes.isEmpty()) {
-                // --- ESTADO VACÍO CON ONDA ---
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -95,26 +147,6 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        // --- HEADER CON MÁS PERSONALIDAD ---
-                        Column(modifier = Modifier.padding(bottom = 24.dp, top = 8.dp)) {
-                            Text(
-                                text = "Mis Notas",
-                                style = TextStyle(
-                                    fontSize = 34.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    letterSpacing = (-1).sp
-                                )
-                            )
-                            Text(
-                                text = "${state.notes.size} notas guardadas",
-                                color = Color(0xFF50C878).copy(alpha = 0.6f),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
                     items(state.notes, key = { it.id }) { note ->
                         HomeNoteItem(
                             modifier = Modifier.animateItem(), // ✨ Animación cuando borrás/agregás

@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -28,22 +32,43 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
     val effect = _effect.receiveAsFlow()
 
     init {
-        handleIntent(HomeIntent.LoadNotes)
+        observeNotesWithFilter()
     }
 
     fun handleIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadNotes -> observeNotes()
+            is HomeIntent.LoadNotes -> { /* Ya se encarga el init */ }
             is HomeIntent.AddTestNote -> createNote(intent.title, intent.content)
             is HomeIntent.DeleteNote -> removeNote(intent.note)
+            is HomeIntent.ToggleSearch -> {
+                _state.update { it.copy(
+                    isSearchVisible = intent.isVisible,
+                    searchQuery = if (!intent.isVisible) "" else it.searchQuery
+                ) }
+            }
+            is HomeIntent.UpdateSearchQuery -> {
+                _state.update { it.copy(searchQuery = intent.query) }
+            }
         }
     }
 
-    private fun observeNotes() {
-        repository.getNotes()
+    private fun observeNotesWithFilter() {
+        combine(
+            repository.getNotes(),
+            _state.map { it.searchQuery }.distinctUntilChanged()
+        ) { allNotes, query ->
+            if (query.isBlank()) {
+                allNotes
+            } else {
+                allNotes.filter { note ->
+                    note.title.contains(query, ignoreCase = true) ||
+                            note.content.contains(query, ignoreCase = true)
+                }
+            }
+        }
             .onStart { _state.update { it.copy(isLoading = true) } }
-            .onEach { list ->
-                _state.update { it.copy(notes = list, isLoading = false) }
+            .onEach { filteredList ->
+                _state.update { it.copy(notes = filteredList, isLoading = false) }
             }
             .catch { t ->
                 _state.update { it.copy(error = t.message, isLoading = false) }
