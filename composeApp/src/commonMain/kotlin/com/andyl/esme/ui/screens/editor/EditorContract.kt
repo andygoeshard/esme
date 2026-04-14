@@ -18,7 +18,6 @@ sealed interface EditorIntent {
     data class UpdateContent(val blockId: String, val newContent: String) : EditorIntent
     data object SaveNote : EditorIntent
     data object DeleteNote : EditorIntent
-
     data class UpdateBlock(val block: EsmeBlock) : EditorIntent
     data class AddBlock(val afterBlockId: String) : EditorIntent
     data class DeleteBlock(val blockId: String) : EditorIntent

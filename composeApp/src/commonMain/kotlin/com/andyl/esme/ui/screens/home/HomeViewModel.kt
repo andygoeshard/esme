@@ -2,6 +2,7 @@ package com.andyl.esme.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
 import kotlinx.coroutines.Job
@@ -51,6 +52,7 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
             is HomeIntent.UpdateSearchQuery -> {
                 _state.update { it.copy(searchQuery = intent.query) }
             }
+            is HomeIntent.ToggleTask -> toggleTask(intent.block, intent.isChecked)
         }
     }
 
@@ -105,6 +107,14 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
             repository.saveNote(newNote)
             _effect.trySend(HomeEffect.NavigateToEditor(newId))
         }
+    }
+
+    private fun toggleTask(block: BlockEntity, isChecked: Boolean) {
+        viewModelScope.launch {
+            val updatedBlock = block.copy(isChecked = isChecked)
+            repository.saveBlocks(listOf(updatedBlock))
+        }
+        println("TOGGLE: ${block.id} -> $isChecked")
     }
 
     private fun removeNote(note: NoteEntity) {

@@ -6,6 +6,7 @@ import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.local.model.NoteWithBlocks
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 
 class NoteRepository(
     private val noteDao: NoteDao,
@@ -24,7 +25,21 @@ class NoteRepository(
         noteDao.deleteNote(note)
     }
 
-    suspend fun getNotesWithBlocks(): Flow<List<NoteWithBlocks>> = noteDao.getNotesWithBlocks()
+    fun getNotesWithBlocks(): Flow<List<NoteWithBlocks>> =
+        combine(
+            noteDao.getAllNotes(),
+            blockDao.getAllBlocks()
+        ) { notes, blocks ->
+            println("FLOW EMIT: ${blocks.size}")
+            val blocksByNoteId = blocks.groupBy { it.noteId }
+
+            notes.map { note ->
+                NoteWithBlocks(
+                    note = note,
+                    blocks = blocksByNoteId[note.id] ?: emptyList()
+                )
+            }
+        }
 
     // --- Bloques  ---
 

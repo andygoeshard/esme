@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
@@ -50,9 +53,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.ui.screens.home.components.HomeNoteItem
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -174,7 +179,12 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
-                    items(state.notes, key = { it.note.id }) { item ->
+                    items(
+                        state.notes,
+                        key = { noteWithBlocks ->
+                            noteWithBlocks.note.id + noteWithBlocks.blocks.hashCode()
+                        }
+                    ) { item ->
                         HomeNoteItem(
                             modifier = Modifier.animateItem(),
                             item = item,
@@ -182,11 +192,28 @@ fun HomeScreen(
                             onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(item.note)) }
                         )
                     }
+                    if (!state.isSearchVisible) {
+                    val pendingTasks = state.notes
+                        .flatMap { it.blocks }
+                        .filter { it.type == "TODO" && it.isChecked == false }
+
+                    if (pendingTasks.isNotEmpty()) {
+                        item(span = StaggeredGridItemSpan.FullLine) {
+                            TaskDashboard(
+                                tasks = pendingTasks,
+                                onToggle = { block, isChecked ->
+                                    viewModel.handleIntent(HomeIntent.ToggleTask(block, isChecked))
+                                }
+                            )
+                        }
+                    }
+                }
                     if (!state.isSearchVisible && state.totalExpenses > 0.0) {
                         item(span = StaggeredGridItemSpan.FullLine) {
                             DashboardCard(total = state.totalExpenses)
                         }
                     }
+
                 }
             }
         }
@@ -234,6 +261,90 @@ fun DashboardCard(total: Double) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.TrendingUp, null, tint = Color(0xFF50C878))
+            }
+        }
+    }
+}
+
+@Composable
+fun TaskDashboard(
+    tasks: List<BlockEntity>,
+    onToggle: (BlockEntity, Boolean) -> Unit
+) {
+    if (tasks.isEmpty()) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF16201A)),
+        border = BorderStroke(1.dp, Color(0xFF50C878).copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Tareas Pendientes",
+                    color = Color(0xFF50C878),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    )
+                )
+                Text(
+                    text = "${tasks.size}",
+                    color = Color(0xFF50C878).copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Mostramos un máximo de 5 para no explotar la UI
+            tasks.take(5).forEach { task ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { onToggle(task, !(task.isChecked ?: false)) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (task.isChecked == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            contentDescription = null,
+                            tint = if (task.isChecked == true) Color(0xFF50C878) else Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Text(
+                        text = task.content ?: "Tarea sin texto",
+                        color = Color.White.copy(0.9f),
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (tasks.size > 5) {
+                Text(
+                    text = "y ${tasks.size - 5} más...",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 8.dp, start = 36.dp)
+                )
             }
         }
     }

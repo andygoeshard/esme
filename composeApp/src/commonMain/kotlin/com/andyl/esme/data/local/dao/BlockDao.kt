@@ -13,6 +13,9 @@ interface BlockDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertBlocks(blocks: List<BlockEntity>)
 
+    @Query("SELECT * FROM blocks")
+    fun getAllBlocks(): Flow<List<BlockEntity>>
+
     @Query("SELECT * FROM blocks WHERE noteId = :noteId ORDER BY orderIndex ASC")
     fun getBlocksForNote(noteId: String): Flow<List<BlockEntity>>
 

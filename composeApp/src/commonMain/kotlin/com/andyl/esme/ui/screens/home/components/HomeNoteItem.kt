@@ -66,14 +66,16 @@ fun HomeNoteItem(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                val lines = note.content.lines().filter { it.isNotBlank() }.take(4)
+                val lines = item.blocks
+                    .sortedBy { it.orderIndex }
+                    .take(4)
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    lines.forEach { line ->
-                        val trimmed = line.trim()
-                        when {
-                            trimmed.startsWith("- [ ]") || trimmed.startsWith("- [x]") -> {
-                                val isDone = trimmed.startsWith("- [x]")
+                    lines.forEach { block ->
+                        when (block.type) {
+
+                            "TODO" -> {
+                                val isDone = block.isChecked == true
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
@@ -83,7 +85,7 @@ fun HomeNoteItem(
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
-                                        text = trimmed.substring(5).trim(),
+                                        text = block.content ?: "",
                                         color = if (isDone) Color.Gray else Color.White.copy(0.8f),
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -92,25 +94,28 @@ fun HomeNoteItem(
                                     )
                                 }
                             }
-                            trimmed.startsWith("$") -> {
+
+                            "EXPENSE" -> {
                                 Text(
-                                    text = "💰 ${trimmed.substring(1).trim()}",
+                                    text = "💰 ${block.amount ?: ""}",
                                     color = Color(0xFF50C878),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            trimmed.startsWith("!!!") -> {
+
+                            "PRIORITY" -> {
                                 Text(
-                                    text = "🚨 ${trimmed.substring(3).trim()}",
+                                    text = "🚨 ${block.content ?: ""}",
                                     color = Color.Red.copy(0.7f),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Black
                                 )
                             }
+
                             else -> {
                                 Text(
-                                    text = trimmed,
+                                    text = block.content ?: "",
                                     color = Color.White.copy(alpha = 0.5f),
                                     fontSize = 12.sp,
                                     maxLines = 2,
@@ -122,7 +127,7 @@ fun HomeNoteItem(
                     }
                 }
 
-                if (note.content.lines().size > 4) {
+                if (item.blocks.size > 4) {
                     Text(
                         text = "• • •",
                         color = Color(0xFF50C878).copy(0.2f),
