@@ -33,14 +33,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.andyl.esme.data.local.entity.NoteEntity
+import com.andyl.esme.data.local.model.NoteWithBlocks
 
 @Composable
 fun HomeNoteItem(
-    note: NoteEntity,
+    item: NoteWithBlocks,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val note = item.note
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),

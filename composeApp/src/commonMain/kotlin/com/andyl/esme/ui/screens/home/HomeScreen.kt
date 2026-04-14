@@ -1,9 +1,12 @@
 package com.andyl.esme.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,10 +20,15 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -159,7 +167,6 @@ fun HomeScreen(
                     )
                 }
             } else {
-                // Grilla de Notas
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Adaptive(minSize = 170.dp),
                     modifier = Modifier.fillMaxSize(),
@@ -167,15 +174,66 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
-                    items(state.notes, key = { it.id }) { note ->
+                    items(state.notes, key = { it.note.id }) { item ->
                         HomeNoteItem(
-                            modifier = Modifier.animateItem(), // ✨ Animación de reordenamiento/borrado
-                            note = note,
-                            onClick = { onNavigateToEditor(note.id) },
-                            onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(note)) }
+                            modifier = Modifier.animateItem(),
+                            item = item,
+                            onClick = { onNavigateToEditor(item.note.id) },
+                            onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(item.note)) }
                         )
                     }
+                    if (!state.isSearchVisible && state.totalExpenses > 0.0) {
+                        item(span = StaggeredGridItemSpan.FullLine) {
+                            DashboardCard(total = state.totalExpenses)
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardCard(total: Double) {
+    val displayTotal = ((total * 100).toInt() / 100.0).toString()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF16201A)),
+        border = BorderStroke(1.dp, Color(0xFF50C878).copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    "Balance de Gastos",
+                    color = Color(0xFF50C878).copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$ $displayTotal",
+                    color = Color.White,
+                    style = TextStyle(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-1).sp
+                    )
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFF50C878).copy(0.1f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.TrendingUp, null, tint = Color(0xFF50C878))
             }
         }
     }

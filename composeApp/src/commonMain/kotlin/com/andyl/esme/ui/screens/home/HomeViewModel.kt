@@ -32,12 +32,14 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
     val effect = _effect.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
         observeNotesWithFilter()
+        }
     }
 
     fun handleIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadNotes -> observeNotesWithFilter()
+            is HomeIntent.LoadNotes -> viewModelScope.launch { observeNotesWithFilter() }
             is HomeIntent.AddTestNote -> createNote(intent.title, intent.content)
             is HomeIntent.DeleteNote -> removeNote(intent.note)
             is HomeIntent.ToggleSearch -> {
@@ -52,23 +54,34 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
-    private fun observeNotesWithFilter() {
+    private suspend fun observeNotesWithFilter() {
         combine(
-            repository.getNotes(),
+            repository.getNotesWithBlocks(),
             _state.map { it.searchQuery }.distinctUntilChanged()
-        ) { allNotes, query ->
-            if (query.isBlank()) {
-                allNotes
+        ) { allNotesWithBlocks, query ->
+
+            val globalExpenses = allNotesWithBlocks.flatMap { it.blocks }
+                .filter { it.type == "EXPENSE" }
+                .sumOf { it.amount ?: 0.0 }
+
+            val filtered = if (query.isBlank()) {
+                allNotesWithBlocks
             } else {
-                allNotes.filter { note ->
-                    note.title.contains(query, ignoreCase = true) ||
-                            note.content.contains(query, ignoreCase = true)
+                allNotesWithBlocks.filter { item ->
+                    item.note.title.contains(query, ignoreCase = true) ||
+                            item.note.content.contains(query, ignoreCase = true)
                 }
             }
+
+            filtered to globalExpenses
         }
             .onStart { _state.update { it.copy(isLoading = true) } }
-            .onEach { filteredList ->
-                _state.update { it.copy(notes = filteredList, isLoading = false) }
+            .onEach { (list, total) ->
+                _state.update { it.copy(
+                    notes = list,
+                    totalExpenses = total,
+                    isLoading = false
+                ) }
             }
             .catch { t ->
                 _state.update { it.copy(error = t.message, isLoading = false) }

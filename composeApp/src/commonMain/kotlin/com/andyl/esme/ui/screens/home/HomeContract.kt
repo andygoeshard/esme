@@ -1,9 +1,11 @@
 package com.andyl.esme.ui.screens.home
 
 import com.andyl.esme.data.local.entity.NoteEntity
+import com.andyl.esme.data.local.model.NoteWithBlocks
 
 data class HomeState(
-    val notes: List<NoteEntity> = emptyList(),
+    val notes: List<NoteWithBlocks> = emptyList(),
+    val totalExpenses: Double = 0.0,
     val isLoading: Boolean = false,
     val isSearchVisible: Boolean = false,
     val searchQuery: String = "",

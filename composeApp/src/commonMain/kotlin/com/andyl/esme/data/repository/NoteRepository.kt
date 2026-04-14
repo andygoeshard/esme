@@ -4,6 +4,7 @@ import com.andyl.esme.data.local.dao.BlockDao
 import com.andyl.esme.data.local.dao.NoteDao
 import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.data.local.entity.NoteEntity
+import com.andyl.esme.data.local.model.NoteWithBlocks
 import kotlinx.coroutines.flow.Flow
 
 class NoteRepository(
@@ -23,7 +24,9 @@ class NoteRepository(
         noteDao.deleteNote(note)
     }
 
-    // --- Bloques (La magia de la Opción B) ---
+    suspend fun getNotesWithBlocks(): Flow<List<NoteWithBlocks>> = noteDao.getNotesWithBlocks()
+
+    // --- Bloques  ---
 
     fun getBlocksForNote(noteId: String): Flow<List<BlockEntity>> {
         return blockDao.getBlocksForNote(noteId)
