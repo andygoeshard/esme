@@ -7,7 +7,10 @@ import com.andyl.esme.data.repository.NoteRepository
 import com.andyl.esme.domain.helper.processSmartTokens
 import com.andyl.esme.domain.mapper.EsmeBlockMapper
 import com.andyl.esme.domain.model.EsmeBlock
+import com.andyl.esme.ui.screens.editor.transformer.BlockParser
+import com.andyl.esme.ui.screens.editor.transformer.EsmeBlockTransformer
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +32,8 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
 
     private val _effect = Channel<EditorEffect>()
     val effect = _effect.receiveAsFlow()
+    private var observeJob: Job? = null
+
 
     init {
         viewModelScope.launch {
@@ -78,73 +83,13 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
     }
 
     private fun updateBlockAndCheckMutation(blockId: String, content: String) {
-        val noteId = _state.value.id ?: return
-
-        _state.update { currentState ->
-            var mutationHappened = false
-            val updatedList = currentState.blocks.map { block ->
-                if (block.id == blockId && block is EsmeBlock.Text) {
-                    when {
-                        content.startsWith("- [ ] ") -> {
-                            mutationHappened = true
-                            EsmeBlock.Todo(
-                                blockId,
-                                noteId,
-                                block.orderIndex,
-                                content.removePrefix("- [ ] "),
-                                false
-                            )
-                        }
-
-                        content.startsWith("!!! ") -> {
-                            mutationHappened = true
-                            EsmeBlock.Priority(
-                                blockId,
-                                noteId,
-                                block.orderIndex,
-                                content.removePrefix("!!! ")
-                            )
-                        }
-
-                        content.startsWith("$ ") -> {
-                            mutationHappened = true
-                            val raw = content.removePrefix("$ ").trim()
-                            val parts = raw.split(" ", limit = 2)
-                            val possibleAmount = parts.getOrNull(0)?.toDoubleOrNull() ?: 0.0
-                            val description = if (parts.size > 1) parts[1] else if (possibleAmount == 0.0) raw else "Gasto"
-
-                            EsmeBlock.Expense(
-                                id = blockId,
-                                noteId = noteId,
-                                orderIndex = block.orderIndex,
-                                description = description,
-                                amount = possibleAmount
-                            )
-                        }
-
-                        content.startsWith("---") ->
-                            EsmeBlock.Divider(blockId, noteId, block.orderIndex)
-
-                        content.startsWith("> ") -> {
-                            mutationHappened = true
-                            EsmeBlock.Quote(
-                                blockId,
-                                noteId,
-                                block.orderIndex,
-                                content.removePrefix("> ")
-                            )
-                        }
-
-                        else -> block.copy(content = content)
-                    }
-                } else {
-                    block
-                }
+        _state.update { current ->
+            val newBlocks = current.blocks.map { block ->
+                if (block.id == blockId) {
+                    EsmeBlockTransformer.transform(block, content)
+                } else block
             }
-            currentState.copy(
-                blocks = reindex(updatedList),
-                focusedBlockId = if (mutationHappened) blockId else currentState.focusedBlockId
-            )
+            current.copy(blocks = reindex(newBlocks))
         }
     }
     private fun addNewBlock(afterBlockId: String) {
@@ -230,31 +175,44 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
-    private fun loadNote(id: String?) {
-        if (id == null) {
-            _state.update { EditorState(id = Uuid.random().toString(), isSaving = false) }
-            return
-        }
+    private fun observeNote(noteId: String) {
+        observeJob?.cancel()
 
-        viewModelScope.launch {
-            val entity = repository.getNoteById(id)
+        observeJob = viewModelScope.launch {
+            repository.getNote(noteId).collect { note ->
 
-            repository.getBlocksForNote(id).first().let { blockEntities ->
-                val domainBlocks = blockEntities.map { EsmeBlockMapper.toDomain(it) }
+                if (note == null) return@collect
 
                 _state.update {
                     it.copy(
-                        id = entity?.id ?: id,
-                        title = entity?.title ?: "",
-                        blocks = domainBlocks.ifEmpty {
-                            listOf(EsmeBlock.Text(Uuid.random().toString(), id, 0, ""))
+                        id = note.id,
+                        title = note.title,
+                        blocks = note.blocks.ifEmpty {
+                            listOf(
+                                EsmeBlock.Text(
+                                    Uuid.random().toString(),
+                                    note.id,
+                                    0,
+                                    ""
+                                )
+                            )
                         },
                         isSaving = false,
-                        focusedBlockId = domainBlocks.firstOrNull()?.id
+                        focusedBlockId = note.blocks.firstOrNull()?.id
                     )
                 }
             }
         }
+    }
+    private fun loadNote(id: String?) {
+        if (id == null) {
+            _state.update {
+                EditorState(id = Uuid.random().toString(), isSaving = false)
+            }
+            return
+        }
+
+        observeNote(id)
     }
 
     private fun saveCurrentNote() {
@@ -264,32 +222,21 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            val fullContent = current.blocks.joinToString("\n") { block ->
-                when (block) {
-                    is EsmeBlock.Text -> block.content
-                    is EsmeBlock.Todo -> if (block.isChecked) "- [x] ${block.content}" else "- [ ] ${block.content}"
-                    is EsmeBlock.Expense -> "$ ${block.amount} ${block.description}"
-                    is EsmeBlock.Priority -> "!!! ${block.content}"
-                    is EsmeBlock.Quote -> "> ${block.content}"
-                    is EsmeBlock.Divider -> "---"
-                    else -> ""
-                }
-            }
-
-            repository.saveNote(
-                NoteEntity(
-                    id = noteId,
-                    title = current.title,
-                    content = fullContent,
-                    updatedAt = Clock.System.now().toEpochMilliseconds()
-                )
+            val note = NoteEntity(
+                id = noteId,
+                title = current.title,
+                content = buildLegacyContent(current.blocks),
+                updatedAt = Clock.System.now().toEpochMilliseconds()
             )
 
-            val entities = current.blocks.map { EsmeBlockMapper.toEntity(it) }
-            repository.saveBlocks(entities)
+            repository.saveNote(note)
+            repository.saveBlocks(current.blocks)
 
             _state.update {
-                it.copy(isSaving = false, lastSaved = Clock.System.now().toEpochMilliseconds())
+                it.copy(
+                    isSaving = false,
+                    lastSaved = Clock.System.now().toEpochMilliseconds()
+                )
             }
         }
     }
@@ -298,8 +245,33 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         val currentId = _state.value.id ?: return
         viewModelScope.launch {
             repository.getNoteById(currentId)?.let { entity ->
-                repository.deleteNote(entity)
+                repository.deleteNoteById(entity.id)
                 _effect.send(EditorEffect.NavigateBack)
+            }
+        }
+    }
+
+    private fun buildLegacyContent(blocks: List<EsmeBlock>): String {
+        return blocks.joinToString("\n") { block ->
+            when (block) {
+                is EsmeBlock.Text -> block.content
+                is EsmeBlock.Todo ->
+                    if (block.isChecked) "- [x] ${block.content}"
+                    else "- [ ] ${block.content}"
+
+                is EsmeBlock.Expense ->
+                    "$ ${block.amount} ${block.description}"
+
+                is EsmeBlock.Priority ->
+                    "!!! ${block.content}"
+
+                is EsmeBlock.Quote ->
+                    "> ${block.content}"
+
+                is EsmeBlock.Divider ->
+                    "---"
+
+                else -> ""
             }
         }
     }

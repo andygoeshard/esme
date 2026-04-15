@@ -20,7 +20,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,17 +31,17 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.local.model.NoteWithBlocks
+import com.andyl.esme.domain.model.EsmeBlock
+import com.andyl.esme.domain.model.EsmeNote
 
 @Composable
 fun HomeNoteItem(
-    item: NoteWithBlocks,
+    item: EsmeNote,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val note = item.note
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
@@ -53,7 +52,7 @@ fun HomeNoteItem(
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = note.title.ifBlank { "Sin título" },
+                    text = item.title.ifBlank { "Sin título" },
                     color = Color(0xFF50C878),
                     style = TextStyle(
                         fontSize = 18.sp,
@@ -71,57 +70,77 @@ fun HomeNoteItem(
                     .take(4)
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    lines.forEach { block ->
-                        when (block.type) {
+                    val lines = item.blocks
+                        .sortedBy { it.orderIndex }
+                        .take(4)
 
-                            "TODO" -> {
-                                val isDone = block.isChecked == true
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                                        contentDescription = null,
-                                        tint = if (isDone) Color(0xFF50C878).copy(0.5f) else Color.Gray,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        lines.forEach { block ->
+                            when (block) {
+
+                                is EsmeBlock.Todo -> {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = if (block.isChecked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                            contentDescription = null,
+                                            tint = if (block.isChecked) Color(0xFF50C878).copy(0.5f) else Color.Gray,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = block.content,
+                                            color = if (block.isChecked) Color.Gray else Color.White.copy(0.8f),
+                                            fontSize = 12.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textDecoration = if (block.isChecked) TextDecoration.LineThrough else null
+                                        )
+                                    }
+                                }
+
+                                is EsmeBlock.Expense -> {
                                     Text(
-                                        text = block.content ?: "",
-                                        color = if (isDone) Color.Gray else Color.White.copy(0.8f),
+                                        text = "💰 ${block.amount} ${block.description}",
+                                        color = Color(0xFF50C878),
                                         fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textDecoration = if (isDone) TextDecoration.LineThrough else null
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                            }
 
-                            "EXPENSE" -> {
-                                Text(
-                                    text = "💰 ${block.amount ?: ""}",
-                                    color = Color(0xFF50C878),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                                is EsmeBlock.Priority -> {
+                                    Text(
+                                        text = "🚨 ${block.content}",
+                                        color = Color.Red.copy(0.7f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
 
-                            "PRIORITY" -> {
-                                Text(
-                                    text = "🚨 ${block.content ?: ""}",
-                                    color = Color.Red.copy(0.7f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
+                                is EsmeBlock.Text -> {
+                                    Text(
+                                        text = block.content,
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 12.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        lineHeight = 16.sp
+                                    )
+                                }
 
-                            else -> {
-                                Text(
-                                    text = block.content ?: "",
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    fontSize = 12.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    lineHeight = 16.sp
-                                )
+                                is EsmeBlock.Quote -> {
+                                    Text(
+                                        text = "> ${block.content}",
+                                        color = Color.Gray,
+                                        fontSize = 12.sp,
+                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                    )
+                                }
+
+                                is EsmeBlock.Divider -> {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+
+                                else -> {}
                             }
                         }
                     }

@@ -48,7 +48,6 @@ fun EditorScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val syntaxTransformer = remember { EsmeSyntaxTransformer() }
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    val reorderState = remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     LaunchedEffect(noteId) {
         viewModel.handleIntent(EditorIntent.LoadNote(noteId))

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
+import com.andyl.esme.domain.model.EsmeBlock
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,45 +34,65 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
     val effect = _effect.receiveAsFlow()
 
     init {
-        viewModelScope.launch {
         observeNotesWithFilter()
-        }
     }
 
     fun handleIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadNotes -> viewModelScope.launch { observeNotesWithFilter() }
-            is HomeIntent.AddTestNote -> createNote(intent.title, intent.content)
-            is HomeIntent.DeleteNote -> removeNote(intent.note)
+            is HomeIntent.LoadNotes -> observeNotesWithFilter()
+
+            is HomeIntent.AddTestNote -> createNote(intent.title)
+
+            is HomeIntent.DeleteNote -> removeNote(intent.noteId)
+
             is HomeIntent.ToggleSearch -> {
-                _state.update { it.copy(
-                    isSearchVisible = intent.isVisible,
-                    searchQuery = if (!intent.isVisible) "" else it.searchQuery
-                ) }
+                _state.update {
+                    it.copy(
+                        isSearchVisible = intent.isVisible,
+                        searchQuery = if (!intent.isVisible) "" else it.searchQuery
+                    )
+                }
             }
+
             is HomeIntent.UpdateSearchQuery -> {
                 _state.update { it.copy(searchQuery = intent.query) }
             }
+
             is HomeIntent.ToggleTask -> toggleTask(intent.block, intent.isChecked)
         }
     }
-
-    private suspend fun observeNotesWithFilter() {
+    private fun observeNotesWithFilter() {
         combine(
             repository.getNotesWithBlocks(),
             _state.map { it.searchQuery }.distinctUntilChanged()
-        ) { allNotesWithBlocks, query ->
+        ) { allNotes, query ->
 
-            val globalExpenses = allNotesWithBlocks.flatMap { it.blocks }
-                .filter { it.type == "EXPENSE" }
-                .sumOf { it.amount ?: 0.0 }
+            val globalExpenses = allNotes
+                .flatMap { it.blocks }
+                .filterIsInstance<EsmeBlock.Expense>()
+                .sumOf { it.amount }
 
             val filtered = if (query.isBlank()) {
-                allNotesWithBlocks
+                allNotes
             } else {
-                allNotesWithBlocks.filter { item ->
-                    item.note.title.contains(query, ignoreCase = true) ||
-                            item.note.content.contains(query, ignoreCase = true)
+                allNotes.filter { note ->
+
+                    val matchesTitle = note.title.contains(query, ignoreCase = true)
+
+                    val matchesBlocks = note.blocks.any { block ->
+                        when (block) {
+                            is EsmeBlock.Text -> block.content.contains(query, true)
+                            is EsmeBlock.Todo -> block.content.contains(query, true)
+                            is EsmeBlock.Priority -> block.content.contains(query, true)
+                            is EsmeBlock.Quote -> block.content.contains(query, true)
+                            is EsmeBlock.Bullet -> block.content.contains(query, true)
+                            is EsmeBlock.Code -> block.content.contains(query, true)
+                            is EsmeBlock.Expense -> block.description.contains(query, true)
+                            else -> false
+                        }
+                    }
+
+                    matchesTitle || matchesBlocks
                 }
             }
 
@@ -79,11 +100,13 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
         }
             .onStart { _state.update { it.copy(isLoading = true) } }
             .onEach { (list, total) ->
-                _state.update { it.copy(
-                    notes = list,
-                    totalExpenses = total,
-                    isLoading = false
-                ) }
+                _state.update {
+                    it.copy(
+                        notes = list,
+                        totalExpenses = total,
+                        isLoading = false
+                    )
+                }
             }
             .catch { t ->
                 _state.update { it.copy(error = t.message, isLoading = false) }
@@ -91,35 +114,34 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
             }
             .launchIn(viewModelScope)
     }
-
     @OptIn(ExperimentalUuidApi::class)
-    private fun createNote(title: String, content: String) {
+    private fun createNote(title: String) {
         viewModelScope.launch {
             val newId = Uuid.random().toString()
 
-            val newNote = NoteEntity(
-                id = newId,
-                title = title,
-                content = content,
-                updatedAt = Clock.System.now().toEpochMilliseconds()
+            repository.saveNote(
+                NoteEntity(
+                    id = newId,
+                    title = title,
+                    content = "", // ⚠️ temporal (lo vamos a matar después)
+                    updatedAt = Clock.System.now().toEpochMilliseconds()
+                )
             )
 
-            repository.saveNote(newNote)
             _effect.trySend(HomeEffect.NavigateToEditor(newId))
         }
     }
+    private fun toggleTask(block: EsmeBlock, isChecked: Boolean) {
+        if (block !is EsmeBlock.Todo) return
 
-    private fun toggleTask(block: BlockEntity, isChecked: Boolean) {
         viewModelScope.launch {
-            val updatedBlock = block.copy(isChecked = isChecked)
-            repository.saveBlocks(listOf(updatedBlock))
+            val updated = block.copy(isChecked = isChecked)
+            repository.saveBlocks(listOf(updated))
         }
-        println("TOGGLE: ${block.id} -> $isChecked")
     }
-
-    private fun removeNote(note: NoteEntity) {
+    private fun removeNote(noteId: String) {
         viewModelScope.launch {
-            repository.deleteNote(note)
+            repository.deleteNoteById(noteId)
         }
     }
 }

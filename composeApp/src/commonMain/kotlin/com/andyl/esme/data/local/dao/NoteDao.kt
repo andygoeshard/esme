@@ -24,7 +24,14 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE id = :id")
     suspend fun getNoteById(id: String): NoteEntity?
 
+    @Query("SELECT * FROM notes WHERE id = :id")
+    fun getNoteFlowById(id: String): Flow<NoteEntity?>
     @Transaction
     @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
     fun getNotesWithBlocks(): Flow<List<NoteWithBlocks>>
+
+    @Query("DELETE FROM notes WHERE id = :id")
+    suspend fun deleteNoteById(id: String)
+
 }
+
