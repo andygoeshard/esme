@@ -9,6 +9,7 @@ import com.andyl.esme.domain.mapper.EsmeBlockMapper
 import com.andyl.esme.domain.model.EsmeBlock
 import com.andyl.esme.ui.screens.editor.transformer.BlockParser
 import com.andyl.esme.ui.screens.editor.transformer.EsmeBlockTransformer
+import com.andyl.esme.ui.screens.editor.transformer.EsmeMultiBlockParser
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -65,7 +66,12 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
 
             is EditorIntent.UpdateContent -> {
                 val processedContent = processSmartTokens(intent.newContent)
-                updateBlockAndCheckMutation(intent.blockId, processedContent)
+
+                if (processedContent.contains("\n")) {
+                    handlePaste(intent.blockId, processedContent)
+                } else {
+                    updateBlockAndCheckMutation(intent.blockId, processedContent)
+                }
             }
 
             is EditorIntent.AddBlock -> {
@@ -273,6 +279,28 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
 
                 else -> ""
             }
+        }
+    }
+
+    private fun handlePaste(blockId: String, raw: String) {
+        val noteId = _state.value.id ?: return
+
+        _state.update { current ->
+
+            val index = current.blocks.indexOfFirst { it.id == blockId }
+            if (index == -1) return@update current
+
+            val parsed = EsmeMultiBlockParser.parse(noteId, raw)
+
+            val newList = current.blocks.toMutableList().apply {
+                removeAt(index)
+                addAll(index, parsed)
+            }
+
+            current.copy(
+                blocks = reindex(newList),
+                focusedBlockId = parsed.lastOrNull()?.id
+            )
         }
     }
 }
