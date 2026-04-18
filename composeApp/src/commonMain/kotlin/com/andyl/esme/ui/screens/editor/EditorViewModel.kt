@@ -4,11 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
+import com.andyl.esme.domain.engine.EsmeBlockEngine
 import com.andyl.esme.domain.helper.processSmartTokens
-import com.andyl.esme.domain.mapper.EsmeBlockMapper
 import com.andyl.esme.domain.model.EsmeBlock
-import com.andyl.esme.ui.screens.editor.transformer.BlockParser
-import com.andyl.esme.ui.screens.editor.transformer.EsmeBlockTransformer
 import com.andyl.esme.ui.screens.editor.transformer.EsmeMultiBlockParser
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -18,7 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -70,7 +67,7 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                 if (processedContent.contains("\n")) {
                     handlePaste(intent.blockId, processedContent)
                 } else {
-                    updateBlockAndCheckMutation(intent.blockId, processedContent)
+                    updateBlock(intent.blockId, processedContent)
                 }
             }
 
@@ -88,11 +85,11 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
-    private fun updateBlockAndCheckMutation(blockId: String, content: String) {
+    private fun updateBlock(blockId: String, content: String) {
         _state.update { current ->
             val newBlocks = current.blocks.map { block ->
                 if (block.id == blockId) {
-                    EsmeBlockTransformer.transform(block, content)
+                    EsmeBlockEngine.process(block, content)
                 } else block
             }
             current.copy(blocks = reindex(newBlocks))

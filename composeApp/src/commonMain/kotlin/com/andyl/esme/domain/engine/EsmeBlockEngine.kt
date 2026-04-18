@@ -1,10 +1,10 @@
-package com.andyl.esme.ui.screens.editor.transformer
+package com.andyl.esme.domain.engine
 
 import com.andyl.esme.domain.model.EsmeBlock
 
-object EsmeBlockTransformer {
+object EsmeBlockEngine {
 
-    fun transform(
+    fun process(
         block: EsmeBlock,
         input: String
     ): EsmeBlock {
@@ -15,6 +15,7 @@ object EsmeBlockTransformer {
 
         return when {
 
+            // --- TODO ---
             input.startsWith("- [ ] ") -> {
                 EsmeBlock.Todo(
                     id,
@@ -25,6 +26,7 @@ object EsmeBlockTransformer {
                 )
             }
 
+            // --- PRIORITY ---
             input.startsWith("!!! ") -> {
                 EsmeBlock.Priority(
                     id,
@@ -34,6 +36,7 @@ object EsmeBlockTransformer {
                 )
             }
 
+            // --- EXPENSE ---
             input.startsWith("$ ") -> {
                 val raw = input.removePrefix("$ ").trim()
                 val parts = raw.split(" ", limit = 2)
@@ -53,6 +56,7 @@ object EsmeBlockTransformer {
                 )
             }
 
+            // --- QUOTE ---
             input.startsWith("> ") -> {
                 EsmeBlock.Quote(
                     id,
@@ -62,10 +66,12 @@ object EsmeBlockTransformer {
                 )
             }
 
+            // --- DIVIDER ---
             input.startsWith("---") -> {
                 EsmeBlock.Divider(id, noteId, order)
             }
 
+            // --- DEFAULT (NO CAMBIA TIPO) ---
             else -> {
                 when (block) {
                     is EsmeBlock.Text -> block.copy(content = input)

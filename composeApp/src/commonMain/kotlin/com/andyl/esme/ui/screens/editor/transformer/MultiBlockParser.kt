@@ -1,5 +1,6 @@
 package com.andyl.esme.ui.screens.editor.transformer
 
+import com.andyl.esme.domain.engine.EsmeBlockEngine
 import com.andyl.esme.domain.model.EsmeBlock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -17,7 +18,7 @@ object EsmeMultiBlockParser {
                 content = ""
             )
 
-            val (parsed, _) = BlockParser.parse(base, line)
+            val parsed = EsmeBlockEngine.process(base, line)
             parsed
         }
     }
