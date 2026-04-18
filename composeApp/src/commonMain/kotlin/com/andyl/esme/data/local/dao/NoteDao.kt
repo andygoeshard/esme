@@ -33,5 +33,8 @@ interface NoteDao {
     @Query("DELETE FROM notes WHERE id = :id")
     suspend fun deleteNoteById(id: String)
 
+    @Query("SELECT * FROM notes WHERE title = :title LIMIT 1")
+    suspend fun findNoteByTitle(title: String): NoteEntity?
+
 }
 

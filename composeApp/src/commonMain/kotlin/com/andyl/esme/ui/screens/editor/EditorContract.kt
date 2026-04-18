@@ -22,9 +22,11 @@ sealed interface EditorIntent {
     data class AddBlock(val afterBlockId: String) : EditorIntent
     data class DeleteBlock(val blockId: String) : EditorIntent
     data class MoveBlock(val fromIndex: Int, val toIndex: Int) : EditorIntent
+    data class OpenLink(val title: String) : EditorIntent
 }
 
 sealed interface EditorEffect {
     data object NavigateBack : EditorEffect
     data class ShowToast(val message: String) : EditorEffect
+    data class NavigateToNote(val noteId: String) : EditorEffect
 }

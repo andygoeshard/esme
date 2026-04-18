@@ -42,12 +42,23 @@ import kotlin.uuid.Uuid
 @Composable
 fun EditorScreen(
     noteId: String? = null,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToNote: (String) -> Unit
 ) {
     val viewModel = koinViewModel<EditorViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val syntaxTransformer = remember { EsmeSyntaxTransformer() }
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+
+    val syntaxTransformer = remember {
+        EsmeSyntaxTransformer { linkTitle ->
+            println("🔥 navegar a: $linkTitle")
+
+            viewModel.handleIntent(
+                EditorIntent.OpenLink(linkTitle)
+            )
+        }
+    }
+
 
     LaunchedEffect(noteId) {
         viewModel.handleIntent(EditorIntent.LoadNote(noteId))
@@ -65,11 +76,15 @@ fun EditorScreen(
         }
     }
 
+
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 EditorEffect.NavigateBack -> onBack()
                 is EditorEffect.ShowToast -> { /* Implementar Snackbar si querés */ }
+                is EditorEffect.NavigateToNote -> {
+                    onNavigateToNote(effect.noteId)
+                }
             }
         }
     }
@@ -224,10 +239,29 @@ fun EditorScreen(
                                     EsmeTextFieldBlock(
                                         modifier = Modifier.focusRequester(requester),
                                         content = block.content,
-                                        onContentChange = { viewModel.handleIntent(EditorIntent.UpdateContent(block.id, it)) },
-                                        onNextBlock = { viewModel.handleIntent(EditorIntent.AddBlock(block.id)) },
-                                        onDeleteIfEmpty = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) },
-                                        transformer = syntaxTransformer
+                                        onContentChange = {
+                                            viewModel.handleIntent(
+                                                EditorIntent.UpdateContent(
+                                                    block.id,
+                                                    it
+                                                )
+                                            )
+                                        },
+                                        onNextBlock = {
+                                            viewModel.handleIntent(
+                                                EditorIntent.AddBlock(
+                                                    block.id
+                                                )
+                                            )
+                                        },
+                                        onDeleteIfEmpty = {
+                                            viewModel.handleIntent(
+                                                EditorIntent.DeleteBlock(
+                                                    block.id
+                                                )
+                                            )
+                                        },
+                                        transformer = syntaxTransformer,
                                     )
                                 }
                                 is EsmeBlock.Todo -> {

@@ -67,6 +67,9 @@ class NoteRepository(
         noteDao.deleteNoteById(id)
     }
 
+    suspend fun findNoteByTitle(title: String): NoteEntity?{
+        return noteDao.findNoteByTitle(title)
+    }
 
     // --- Bloques (Domain ONLY) ---
 

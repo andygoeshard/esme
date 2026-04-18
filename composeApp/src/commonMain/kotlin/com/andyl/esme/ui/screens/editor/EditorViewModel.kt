@@ -82,6 +82,7 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             is EditorIntent.SaveNote -> saveCurrentNote()
             is EditorIntent.DeleteNote -> removeNote()
             is EditorIntent.MoveBlock -> moveBlock(intent.fromIndex, intent.toIndex)
+            is EditorIntent.OpenLink -> openLink(intent.title)
         }
     }
 
@@ -298,6 +299,30 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                 blocks = reindex(newList),
                 focusedBlockId = parsed.lastOrNull()?.id
             )
+        }
+    }
+
+    private fun openLink(title: String) {
+        viewModelScope.launch {
+            val existing = repository.findNoteByTitle(title.trim())
+
+            val noteId = if (existing != null) {
+                existing.id
+            } else {
+                val newId = Uuid.random().toString()
+                repository.saveNote(
+                    NoteEntity(
+                        id = newId,
+                        title = title.trim(),
+                        content = "",
+                        updatedAt = Clock.System.now().toEpochMilliseconds()
+                    )
+                )
+                newId
+            }
+
+            // 3. Mandar el efecto a la UI
+            _effect.send(EditorEffect.NavigateToNote(noteId))
         }
     }
 }

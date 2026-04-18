@@ -2,15 +2,20 @@ package com.andyl.esme.ui.screens.editor.transformer
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import kotlinx.coroutines.NonCancellable.start
 
-class EsmeSyntaxTransformer : VisualTransformation {
+class EsmeSyntaxTransformer(
+    private val onLinkClick: (String) -> Unit
+) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text
 
@@ -27,15 +32,28 @@ class EsmeSyntaxTransformer : VisualTransformation {
             }
 
             // --- LINKS [[Nota]] ---
-            Regex("\\[\\[.*?\\]\\]").findAll(originalText).forEach { result ->
+            Regex("\\[\\[(.*?)\\]\\]").findAll(originalText).forEach { result ->
+                val title = result.groupValues[1]
+                val start = result.range.first
+                val end = result.range.last + 1
+
                 addStyle(
                     style = SpanStyle(
                         color = Color(0xFF50C878),
                         fontWeight = FontWeight.Bold,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                        textDecoration = TextDecoration.Underline
                     ),
-                    start = result.range.first,
-                    end = result.range.last + 1
+                    start = start,
+                    end = end
+                )
+
+                addLink(
+                    clickable = LinkAnnotation.Clickable(
+                        tag = "URL",
+                        linkInteractionListener = { onLinkClick(title) }
+                    ),
+                    start = start,
+                    end = end
                 )
             }
 

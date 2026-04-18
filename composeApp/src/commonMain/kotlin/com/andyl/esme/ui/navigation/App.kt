@@ -29,7 +29,8 @@ fun App() {
                     is EditorRoute -> NavEntry<Route>(route) {
                         EditorScreen(
                             noteId = route.noteId,
-                            onBack = { backStack.removeLastOrNull() }
+                            onBack = { backStack.removeLastOrNull() },
+                            onNavigateToNote = { id -> backStack.add(EditorRoute(id)) }
                         )
                     }
                 }
