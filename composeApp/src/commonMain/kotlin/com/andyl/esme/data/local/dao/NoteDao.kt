@@ -36,5 +36,7 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE title = :title LIMIT 1")
     suspend fun findNoteByTitle(title: String): NoteEntity?
 
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY updatedAt DESC")
+    fun searchNotes(query: String): Flow<List<NoteEntity>>
 }
 

@@ -1,5 +1,6 @@
 package com.andyl.esme.ui.screens.editor
 
+import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.domain.model.EsmeBlock
 
 data class EditorState(
@@ -9,7 +10,10 @@ data class EditorState(
     val focusedBlockId: String? = null,
     val isSaving: Boolean = false,
     val lastSaved: Long? = null,
-    val isReordering: Boolean = false
+    val isReordering: Boolean = false,
+    val searchResults: List<NoteEntity> = emptyList(),
+    val showSearchSelector: Boolean = false,
+    val searchType: SearchType = SearchType.NONE
 )
 
 sealed interface EditorIntent {
@@ -23,6 +27,9 @@ sealed interface EditorIntent {
     data class DeleteBlock(val blockId: String) : EditorIntent
     data class MoveBlock(val fromIndex: Int, val toIndex: Int) : EditorIntent
     data class OpenLink(val title: String) : EditorIntent
+    data class SearchHashtag(val tag: String) : EditorIntent
+    data class SearchMention(val user: String) : EditorIntent
+    data object CloseSearchSelector : EditorIntent
 }
 
 sealed interface EditorEffect {
@@ -30,3 +37,7 @@ sealed interface EditorEffect {
     data class ShowToast(val message: String) : EditorEffect
     data class NavigateToNote(val noteId: String) : EditorEffect
 }
+
+enum class SearchType { NONE, NOTE, HASHTAG, MENTION }
+
+

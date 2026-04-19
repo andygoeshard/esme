@@ -14,7 +14,9 @@ import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.NonCancellable.start
 
 class EsmeSyntaxTransformer(
-    private val onLinkClick: (String) -> Unit
+    private val onLinkClick: (String) -> Unit,
+    private val onHashtagClick: (String) -> Unit,
+    private val onMentionClick: (String) -> Unit
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text
@@ -22,54 +24,49 @@ class EsmeSyntaxTransformer(
         val out = buildAnnotatedString {
             append(originalText)
 
-            // --- FLECHAS ---
-            Regex("->|=>|➔").findAll(originalText).forEach { result ->
-                addStyle(
-                    style = SpanStyle(color = Color(0xFF50C878), fontWeight = FontWeight.Black),
-                    start = result.range.first,
-                    end = result.range.last + 1
-                )
-            }
-
             // --- LINKS [[Nota]] ---
             Regex("\\[\\[(.*?)\\]\\]").findAll(originalText).forEach { result ->
                 val title = result.groupValues[1]
-                val start = result.range.first
-                val end = result.range.last + 1
-
-                addStyle(
-                    style = SpanStyle(
-                        color = Color(0xFF50C878),
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    start = start,
-                    end = end
-                )
-
-                addLink(
-                    clickable = LinkAnnotation.Clickable(
-                        tag = "URL",
-                        linkInteractionListener = { onLinkClick(title) }
-                    ),
-                    start = start,
-                    end = end
+                applyClickableStyle(
+                    tag = "NOTE",
+                    annotation = title,
+                    start = result.range.first,
+                    end = result.range.last + 1,
+                    color = Color(0xFF50C878),
+                    onClick = onLinkClick
                 )
             }
 
             // --- MENCIONES @andy ---
             Regex("@[a-zA-Z0-9_-]+").findAll(originalText).forEach { result ->
-                addStyle(
-                    style = SpanStyle(color = Color(0xFF87CEEB), fontWeight = FontWeight.Bold),
+                val mention = result.value.removePrefix("@")
+                applyClickableStyle(
+                    tag = "MENTION",
+                    annotation = mention,
                     start = result.range.first,
-                    end = result.range.last + 1
+                    end = result.range.last + 1,
+                    color = Color(0xFF87CEEB),
+                    onClick = onMentionClick
                 )
             }
 
             // --- HASHTAGS #esme ---
             Regex("#[a-zA-Z0-9_-]+").findAll(originalText).forEach { result ->
+                val hashtag = result.value.removePrefix("#")
+                applyClickableStyle(
+                    tag = "HASHTAG",
+                    annotation = hashtag,
+                    start = result.range.first,
+                    end = result.range.last + 1,
+                    color = Color(0xFF98FB98),
+                    onClick = onHashtagClick
+                )
+            }
+
+            // --- FLECHAS (Estética) ---
+            Regex("->|=>|➔").findAll(originalText).forEach { result ->
                 addStyle(
-                    style = SpanStyle(color = Color(0xFF98FB98), fontWeight = FontWeight.Bold),
+                    style = SpanStyle(color = Color(0xFF50C878), fontWeight = FontWeight.Black),
                     start = result.range.first,
                     end = result.range.last + 1
                 )
@@ -104,5 +101,33 @@ class EsmeSyntaxTransformer(
         }
 
         return TransformedText(out, OffsetMapping.Identity)
+    }
+
+    private fun AnnotatedString.Builder.applyClickableStyle(
+        tag: String,
+        annotation: String,
+        start: Int,
+        end: Int,
+        color: Color,
+        onClick: (String) -> Unit
+    ) {
+        addStyle(
+            style = SpanStyle(
+                color = color,
+                fontWeight = FontWeight.Bold,
+                textDecoration = TextDecoration.Underline
+            ),
+            start = start,
+            end = end
+        )
+
+        addLink(
+            clickable = LinkAnnotation.Clickable(
+                tag = tag,
+                linkInteractionListener = { onClick(annotation) }
+            ),
+            start = start,
+            end = end
+        )
     }
 }

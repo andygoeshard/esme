@@ -71,6 +71,8 @@ class NoteRepository(
         return noteDao.findNoteByTitle(title)
     }
 
+    fun searchNotes(query: String): Flow<List<NoteEntity>> = noteDao.searchNotes(query)
+
     // --- Bloques (Domain ONLY) ---
 
     suspend fun saveBlocks(blocks: List<EsmeBlock>) {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -82,7 +83,11 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             is EditorIntent.SaveNote -> saveCurrentNote()
             is EditorIntent.DeleteNote -> removeNote()
             is EditorIntent.MoveBlock -> moveBlock(intent.fromIndex, intent.toIndex)
+
             is EditorIntent.OpenLink -> openLink(intent.title)
+            is EditorIntent.SearchHashtag -> performSearch(intent.tag, SearchType.HASHTAG)
+            is EditorIntent.SearchMention -> performSearch(intent.user, SearchType.MENTION)
+            is EditorIntent.CloseSearchSelector -> _state.update { it.copy(showSearchSelector = false) }
         }
     }
 
@@ -320,9 +325,38 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                 )
                 newId
             }
-
-            // 3. Mandar el efecto a la UI
             _effect.send(EditorEffect.NavigateToNote(noteId))
+        }
+    }
+
+    private fun performSearch(query: String, type: SearchType) {
+        viewModelScope.launch {
+            val currentNoteId = _state.value.id
+
+            val searchQuery = when (type) {
+                SearchType.HASHTAG -> "#$query"
+                SearchType.MENTION -> "@$query"
+                else -> query
+            }
+
+            val results = repository.searchNotes(searchQuery).first()
+                .filter { it.id != currentNoteId }
+
+            when {
+                results.isEmpty() -> {
+                    _effect.send(EditorEffect.ShowToast("No se encontraron otras notas con $searchQuery"))
+                }
+                results.size == 1 -> {
+                    _effect.send(EditorEffect.NavigateToNote(results.first().id))
+                }
+                else -> {
+                    _state.update { it.copy(
+                        searchResults = results,
+                        showSearchSelector = true,
+                        searchType = type
+                    ) }
+                }
+            }
         }
     }
 }
