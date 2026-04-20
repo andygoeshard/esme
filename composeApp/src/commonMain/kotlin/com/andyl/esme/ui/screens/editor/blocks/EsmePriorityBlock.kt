@@ -22,12 +22,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
 
 @Composable
 fun EsmePriorityBlock(
     modifier: Modifier = Modifier,
+    blockId: String,
     content: String,
-    onContentChange: (String) -> Unit
+    onContentChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    forceCursorToEnd: Boolean
 ) {
     Surface(
         color = Color(0xFFFF4444).copy(alpha = 0.1f),
@@ -39,21 +43,27 @@ fun EsmePriorityBlock(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(8.dp)
         ) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF4444), modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = Color(0xFFFF4444),
+                modifier = Modifier.size(20.dp)
+            )
+
             Spacer(Modifier.width(12.dp))
-            TextField(
-                value = content,
-                onValueChange = onContentChange,
+
+            EsmeBaseTextField(
+                blockId = blockId,
+                content = content,
+                onContentChange = onContentChange,
                 modifier = modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 ),
-                textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                onFocusChangedExternal = onFocusChanged,
+                forceCursorToEnd = forceCursorToEnd
             )
         }
     }

@@ -30,12 +30,25 @@ sealed interface EditorIntent {
     data class SearchHashtag(val tag: String) : EditorIntent
     data class SearchMention(val user: String) : EditorIntent
     data object CloseSearchSelector : EditorIntent
+    data class OnBackspace(
+        val blockId: String,
+        val cursorPosition: Int
+    ) : EditorIntent
+    data class OnEnter(
+        val blockId: String,
+        val cursorPosition: Int
+    ) : EditorIntent
 }
 
 sealed interface EditorEffect {
     data object NavigateBack : EditorEffect
     data class ShowToast(val message: String) : EditorEffect
     data class NavigateToNote(val noteId: String) : EditorEffect
+}
+
+sealed class BlockResult {
+    data class Update(val block: EsmeBlock) : BlockResult()
+    data class Replace(val blocks: List<EsmeBlock>, val focusId: String?) : BlockResult()
 }
 
 enum class SearchType { NONE, NOTE, HASHTAG, MENTION }

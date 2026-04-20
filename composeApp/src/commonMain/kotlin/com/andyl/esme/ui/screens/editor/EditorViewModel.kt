@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.NoteEntity
 import com.andyl.esme.data.repository.NoteRepository
+import com.andyl.esme.domain.engine.BlockEditorEngine
 import com.andyl.esme.domain.engine.EsmeBlockEngine
 import com.andyl.esme.domain.helper.processSmartTokens
 import com.andyl.esme.domain.model.EsmeBlock
@@ -72,17 +73,45 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                 }
             }
 
-            is EditorIntent.AddBlock -> {
-                addNewBlock(intent.afterBlockId)
+            is EditorIntent.AddBlock -> Unit
+
+            is EditorIntent.OnEnter -> {
+                _state.update { current ->
+                    val result = BlockEditorEngine.onEnter(
+                        blocks = current.blocks,
+                        blockId = intent.blockId,
+                        cursorPosition = intent.cursorPosition
+                    )
+
+                    current.copy(
+                        blocks = result.blocks,
+                        focusedBlockId = result.focusBlockId
+                    )
+                }
             }
 
             is EditorIntent.DeleteBlock -> {
                 deleteBlock(intent.blockId)
             }
+            is EditorIntent.MoveBlock -> moveBlock(intent.fromIndex, intent.toIndex)
+            is EditorIntent.OnBackspace -> {
+                _state.update { current ->
+                    val result = BlockEditorEngine.onBackspace(
+                        blocks = current.blocks,
+                        blockId = intent.blockId,
+                        cursorPosition = intent.cursorPosition
+                    )
+
+                    current.copy(
+                        blocks = result.blocks,
+                        focusedBlockId = result.focusBlockId
+                    )
+                }
+            }
+
 
             is EditorIntent.SaveNote -> saveCurrentNote()
             is EditorIntent.DeleteNote -> removeNote()
-            is EditorIntent.MoveBlock -> moveBlock(intent.fromIndex, intent.toIndex)
 
             is EditorIntent.OpenLink -> openLink(intent.title)
             is EditorIntent.SearchHashtag -> performSearch(intent.tag, SearchType.HASHTAG)
@@ -183,36 +212,6 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             )
         }
     }
-
-    private fun observeNote(noteId: String) {
-        observeJob?.cancel()
-
-        observeJob = viewModelScope.launch {
-            repository.getNote(noteId).collect { note ->
-
-                if (note == null) return@collect
-
-                _state.update {
-                    it.copy(
-                        id = note.id,
-                        title = note.title,
-                        blocks = note.blocks.ifEmpty {
-                            listOf(
-                                EsmeBlock.Text(
-                                    Uuid.random().toString(),
-                                    note.id,
-                                    0,
-                                    ""
-                                )
-                            )
-                        },
-                        isSaving = false,
-                        focusedBlockId = note.blocks.firstOrNull()?.id
-                    )
-                }
-            }
-        }
-    }
     private fun loadNote(id: String?) {
         if (id == null) {
             _state.update {
@@ -221,7 +220,21 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             return
         }
 
-        observeNote(id)
+        viewModelScope.launch {
+            val note = repository.getNoteById(id) ?: return@launch
+
+            _state.update {
+                it.copy(
+                    id = note.id,
+                    title = note.title,
+                    blocks = note.blocks.ifEmpty {
+                        listOf(EsmeBlock.Text(Uuid.random().toString(), note.id, 0, ""))
+                    },
+                    isSaving = false,
+                    focusedBlockId = note.blocks.lastOrNull()?.id
+                )
+            }
+        }
     }
 
     private fun saveCurrentNote() {
@@ -332,30 +345,55 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
     private fun performSearch(query: String, type: SearchType) {
         viewModelScope.launch {
             val currentNoteId = _state.value.id
-
             val searchQuery = when (type) {
                 SearchType.HASHTAG -> "#$query"
                 SearchType.MENTION -> "@$query"
                 else -> query
             }
 
-            val results = repository.searchNotes(searchQuery).first()
-                .filter { it.id != currentNoteId }
+            try {
+                val results = repository.searchNotes(searchQuery).first()
+                    .filter { it.id != currentNoteId }
 
-            when {
-                results.isEmpty() -> {
-                    _effect.send(EditorEffect.ShowToast("No se encontraron otras notas con $searchQuery"))
+                when {
+                    results.isEmpty() -> {
+                        val newId = Uuid.random().toString()
+                        val timestamp = Clock.System.now().toEpochMilliseconds()
+
+                        repository.saveNote(
+                            NoteEntity(
+                                id = newId,
+                                title = "",
+                                content = searchQuery,
+                                updatedAt = timestamp
+                            )
+                        )
+
+                        repository.saveBlocks(listOf(
+                            EsmeBlock.Text(
+                                id = Uuid.random().toString(),
+                                noteId = newId,
+                                orderIndex = 0,
+                                content = searchQuery
+                            )
+                        ))
+
+                        _effect.send(EditorEffect.NavigateToNote(newId))
+                    }
+                    results.size == 1 -> {
+                        _state.update { it.copy(showSearchSelector = false, searchResults = emptyList()) }
+                        _effect.send(EditorEffect.NavigateToNote(results.first().id))
+                    }
+                    else -> {
+                        _state.update { it.copy(
+                            searchResults = results,
+                            showSearchSelector = true,
+                            searchType = type
+                        ) }
+                    }
                 }
-                results.size == 1 -> {
-                    _effect.send(EditorEffect.NavigateToNote(results.first().id))
-                }
-                else -> {
-                    _state.update { it.copy(
-                        searchResults = results,
-                        showSearchSelector = true,
-                        searchType = type
-                    ) }
-                }
+            } catch (e: Exception) {
+                _effect.send(EditorEffect.ShowToast("Error al buscar: ${e.message}"))
             }
         }
     }

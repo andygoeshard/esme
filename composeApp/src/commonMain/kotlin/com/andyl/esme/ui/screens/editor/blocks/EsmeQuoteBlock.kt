@@ -14,12 +14,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
 
 @Composable
 fun EsmeQuoteBlock(
     modifier: Modifier = Modifier,
+    blockId: String,
     content: String,
-    onContentChange: (String) -> Unit
+    onContentChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    forceCursorToEnd: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -35,22 +39,18 @@ fun EsmeQuoteBlock(
             }
             .padding(start = 16.dp)
     ) {
-        TextField(
+        EsmeBaseTextField(
+            blockId = blockId,
+            content = content,
+            onContentChange = onContentChange,
             modifier = modifier,
-            value = content,
-            onValueChange = onContentChange,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                unfocusedTextColor = Color.White
-            ),
-            textStyle = TextStyle(
+            style = TextStyle(
                 fontSize = 18.sp,
                 fontStyle = FontStyle.Italic,
                 color = Color.White.copy(0.8f)
-            )
+            ),
+            onFocusChangedExternal = onFocusChanged,
+            forceCursorToEnd = forceCursorToEnd
         )
     }
 }

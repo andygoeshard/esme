@@ -18,17 +18,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
 
 @Composable
 fun EsmeExpenseBlock(
     modifier: Modifier = Modifier,
+    blockId: String,
     label: String,
     amount: Double,
     onLabelChange: (String) -> Unit,
     onAmountChange: (Double) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    forceCursorToEnd: Boolean
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -41,19 +46,14 @@ fun EsmeExpenseBlock(
             modifier = Modifier.size(24.dp).padding(end = 8.dp)
         )
 
-        TextField(
-            value = label,
-            onValueChange = onLabelChange,
-            placeholder = { Text("Concepto...", color = Color.Gray) },
+        EsmeBaseTextField(
+            blockId = blockId,
+            content = label,
+            onContentChange = onLabelChange,
             modifier = modifier.weight(1f),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            )
+            style = TextStyle(color = Color.White),
+            onFocusChangedExternal = onFocusChanged,
+            forceCursorToEnd = forceCursorToEnd
         )
 
         TextField(

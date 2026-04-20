@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +39,6 @@ import com.andyl.esme.ui.screens.editor.transformer.EsmeSyntaxTransformer
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalUuidApi::class)
 @Composable
@@ -50,6 +50,8 @@ fun EditorScreen(
     val viewModel = koinViewModel<EditorViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+
+    var currentUiFocusedId by remember { mutableStateOf<String?>(null) }
 
     val syntaxTransformer = remember {
         EsmeSyntaxTransformer(
@@ -64,10 +66,19 @@ fun EditorScreen(
     }
 
     LaunchedEffect(state.focusedBlockId) {
-        state.focusedBlockId?.let { id ->
-            delay(200)
-            focusRequesters[id]?.requestFocus()
+        state.focusedBlockId?.let { targetId ->
+            if (targetId != currentUiFocusedId) {
+                focusRequesters[targetId]?.requestFocus()
+                currentUiFocusedId = targetId
+            }
         }
+    }
+
+    LaunchedEffect(state.blocks) {
+        val validIds = state.blocks.map { it.id }.toSet()
+        focusRequesters.keys
+            .filter { it !in validIds }
+            .forEach { focusRequesters.remove(it) }
     }
 
     LaunchedEffect(Unit) {
@@ -80,7 +91,6 @@ fun EditorScreen(
         }
     }
 
-    // --- DIALOGO SELECTOR DE NOTAS ---
     if (state.showSearchSelector) {
         AlertDialog(
             onDismissRequest = { viewModel.handleIntent(EditorIntent.CloseSearchSelector) },
@@ -157,7 +167,7 @@ fun EditorScreen(
         },
         bottomBar = {
             EsmeToolbar(onAction = { token ->
-                val lastId = state.focusedBlockId ?: state.blocks.lastOrNull()?.id
+                val lastId = currentUiFocusedId ?: state.focusedBlockId ?: state.blocks.lastOrNull()?.id
                 if (lastId != null) {
                     val currentContent = (state.blocks.find { it.id == lastId } as? EsmeBlock.Text)?.content ?: ""
                     viewModel.handleIntent(EditorIntent.UpdateContent(lastId, currentContent + token))
@@ -192,6 +202,9 @@ fun EditorScreen(
             itemsIndexed(state.blocks, key = { _, block -> block.id }) { index, block ->
                 val requester = focusRequesters.getOrPut(block.id) { FocusRequester() }
 
+                val isLast = index == state.blocks.lastIndex
+                val shouldFocus = state.focusedBlockId == block.id
+
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
                         if (value == SwipeToDismissBoxValue.EndToStart) {
@@ -217,9 +230,9 @@ fun EditorScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().animateItem()
+                        modifier = Modifier
+                            .fillMaxWidth()
                     ) {
-                        // Controles de orden
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.padding(end = 4.dp).width(24.dp)
@@ -243,42 +256,63 @@ fun EditorScreen(
                             }
                         }
 
-                        // Bloques dinámicos
-                        Box(modifier = Modifier.weight(1f)) {
+                        Box(modifier = Modifier.weight(1f).focusRequester(requester)) {
                             when (block) {
                                 is EsmeBlock.Text -> EsmeTextFieldBlock(
-                                    modifier = Modifier.focusRequester(requester),
                                     content = block.content,
+                                    blockId = block.id,
                                     onContentChange = { viewModel.handleIntent(EditorIntent.UpdateContent(block.id, it)) },
-                                    onNextBlock = { viewModel.handleIntent(EditorIntent.AddBlock(block.id)) },
+                                    onNextBlock = { cursor ->
+                                        viewModel.handleIntent(
+                                            EditorIntent.OnEnter(block.id, cursor)
+                                        )
+                                    },
                                     onDeleteIfEmpty = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) },
-                                    transformer = syntaxTransformer
-                                )
+                                    transformer = syntaxTransformer,
+                                    onFocusChanged = { isFocused ->
+                                        if (isFocused) {
+                                            currentUiFocusedId = block.id
+                                        }
+                                    },
+                                    forceCursorToEnd = shouldFocus && isLast
+                                    )
                                 is EsmeBlock.Todo -> EsmeTodoBlock(
-                                    modifier = Modifier.focusRequester(requester),
                                     content = block.content,
+                                    blockId = block.id,
                                     isChecked = block.isChecked,
                                     onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) },
                                     onCheckedChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(isChecked = it))) },
                                     onDelete = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) }
                                 )
                                 is EsmeBlock.Priority -> EsmePriorityBlock(
-                                    modifier = Modifier.focusRequester(requester),
+                                    blockId = block.id,
                                     content = block.content,
-                                    onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) }
+                                    onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) },
+                                    onFocusChanged = { isFocused ->
+                                        if (isFocused) currentUiFocusedId = block.id
+                                    },
+                                    forceCursorToEnd = shouldFocus && isLast,
                                 )
                                 is EsmeBlock.Expense -> EsmeExpenseBlock(
-                                    modifier = Modifier.focusRequester(requester),
                                     label = block.description,
+                                    blockId = block.id,
                                     amount = block.amount,
                                     onLabelChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(description = it))) },
                                     onAmountChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(amount = it))) },
-                                    onDelete = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) }
+                                    onDelete = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) },
+                                    onFocusChanged = { isFocused ->
+                                        if (isFocused) currentUiFocusedId = block.id
+                                    },
+                                    forceCursorToEnd = shouldFocus && isLast,
                                 )
                                 is EsmeBlock.Quote -> EsmeQuoteBlock(
-                                    modifier = Modifier.focusRequester(requester),
                                     content = block.content,
-                                    onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) }
+                                    blockId = block.id,
+                                    onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) },
+                                    onFocusChanged = { isFocused ->
+                                        if (isFocused) currentUiFocusedId = block.id
+                                    },
+                                    forceCursorToEnd = shouldFocus && isLast,
                                 )
                                 is EsmeBlock.Divider -> HorizontalDivider(
                                     color = Color(0xFF50C878).copy(0.3f),
