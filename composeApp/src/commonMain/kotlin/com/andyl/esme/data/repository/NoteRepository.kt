@@ -31,7 +31,7 @@ class NoteRepository(
             notes.map { note ->
                 EsmeNoteMapper.toDomain(
                     note = note,
-                    blocks = blocksByNoteId[note.id] ?: emptyList()
+                    blocks = blocksByNoteId[note.id].orEmpty()
                 )
             }
         }

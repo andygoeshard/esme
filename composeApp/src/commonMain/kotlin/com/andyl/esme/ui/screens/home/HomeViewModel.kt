@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.data.local.entity.NoteEntity
+import com.andyl.esme.data.local.model.NoteWithBlocks
 import com.andyl.esme.data.repository.NoteRepository
 import com.andyl.esme.domain.model.EsmeBlock
+import com.andyl.esme.domain.model.EsmeNote
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,21 +27,25 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
+class HomeViewModel(
+    private val repository: NoteRepository
+) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeState())
-    val state: StateFlow<HomeState> = _state.asStateFlow()
+    val state = _state.asStateFlow()
 
     private val _effect = Channel<HomeEffect>()
     val effect = _effect.receiveAsFlow()
 
+    private var observeJob: Job? = null
+
     init {
-        observeNotesWithFilter()
+        observeNotes()
     }
 
     fun handleIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadNotes -> observeNotesWithFilter()
+            is HomeIntent.LoadNotes -> observeNotes()
 
             is HomeIntent.AddTestNote -> createNote(intent.title)
 
@@ -61,84 +67,104 @@ class HomeViewModel(private val repository: NoteRepository) : ViewModel() {
             is HomeIntent.ToggleTask -> toggleTask(intent.block, intent.isChecked)
         }
     }
-    private fun observeNotesWithFilter() {
-        combine(
+
+    private fun observeNotes() {
+        observeJob?.cancel()
+
+        observeJob = combine(
             repository.getNotesWithBlocks(),
-            _state.map { it.searchQuery }.distinctUntilChanged()
-        ) { allNotes, query ->
+            _state.map { it.searchQuery }
+                .distinctUntilChanged()
+        ) { notes, query ->
 
-            val globalExpenses = allNotes
-                .flatMap { it.blocks }
-                .filterIsInstance<EsmeBlock.Expense>()
-                .sumOf { it.amount }
+            val filtered = filterNotes(notes, query)
+            val totalExpenses = calculateExpenses(notes)
 
-            val filtered = if (query.isBlank()) {
-                allNotes
-            } else {
-                allNotes.filter { note ->
-
-                    val matchesTitle = note.title.contains(query, ignoreCase = true)
-
-                    val matchesBlocks = note.blocks.any { block ->
-                        when (block) {
-                            is EsmeBlock.Text -> block.content.contains(query, true)
-                            is EsmeBlock.Todo -> block.content.contains(query, true)
-                            is EsmeBlock.Priority -> block.content.contains(query, true)
-                            is EsmeBlock.Quote -> block.content.contains(query, true)
-                            is EsmeBlock.Bullet -> block.content.contains(query, true)
-                            is EsmeBlock.Code -> block.content.contains(query, true)
-                            is EsmeBlock.Expense -> block.description.contains(query, true)
-                            else -> false
-                        }
-                    }
-
-                    matchesTitle || matchesBlocks
-                }
-            }
-
-            filtered to globalExpenses
+            filtered to totalExpenses
         }
             .onStart { _state.update { it.copy(isLoading = true) } }
-            .onEach { (list, total) ->
+            .onEach { (notes, total) ->
                 _state.update {
                     it.copy(
-                        notes = list,
+                        notes = notes,
                         totalExpenses = total,
                         isLoading = false
                     )
                 }
             }
-            .catch { t ->
-                _state.update { it.copy(error = t.message, isLoading = false) }
-                _effect.send(HomeEffect.ShowError("Error al cargar notas"))
+            .catch {
+                _state.update { it.copy(isLoading = false) }
+                _effect.send(HomeEffect.ShowError("Error cargando notas"))
             }
             .launchIn(viewModelScope)
     }
+
+    // -------------------------
+    // 🔍 Lógica separada (clave)
+    // -------------------------
+
+    private fun filterNotes(
+        notes: List<EsmeNote>,
+        query: String
+    ): List<EsmeNote>{
+        if (query.isBlank()) return notes
+
+        return notes.filter { note ->
+            note.title.contains(query, true) ||
+                    note.blocks.any { blockMatchesQuery(it, query) }
+        }
+    }
+
+    private fun blockMatchesQuery(block: EsmeBlock, query: String): Boolean {
+        return when (block) {
+            is EsmeBlock.Text -> block.content.contains(query, true)
+            is EsmeBlock.Todo -> block.content.contains(query, true)
+            is EsmeBlock.Priority -> block.content.contains(query, true)
+            is EsmeBlock.Quote -> block.content.contains(query, true)
+            is EsmeBlock.Bullet -> block.content.contains(query, true)
+            is EsmeBlock.Code -> block.content.contains(query, true)
+            is EsmeBlock.Expense -> block.description.contains(query, true)
+            else -> false
+        }
+    }
+
+    private fun calculateExpenses(notes: List<EsmeNote>): Double {
+        return notes
+            .flatMap { it.blocks }
+            .filterIsInstance<EsmeBlock.Expense>()
+            .sumOf { it.amount }
+    }
+
+    // -------------------------
+    // ⚙️ Acciones
+    // -------------------------
+
     @OptIn(ExperimentalUuidApi::class)
     private fun createNote(title: String) {
         viewModelScope.launch {
-            val newId = Uuid.random().toString()
+            val id = Uuid.random().toString()
 
             repository.saveNote(
                 NoteEntity(
-                    id = newId,
+                    id = id,
                     title = title,
-                    content = "", // ⚠️ temporal (lo vamos a matar después)
+                    content = "",
                     updatedAt = Clock.System.now().toEpochMilliseconds()
                 )
             )
 
-            _effect.trySend(HomeEffect.NavigateToEditor(newId))
+            _effect.send(HomeEffect.NavigateToEditor(id))
         }
     }
+
     private fun toggleTask(block: EsmeBlock, isChecked: Boolean) {
         if (block !is EsmeBlock.Todo) return
 
         viewModelScope.launch {
-            val updated = block.copy(isChecked = isChecked)
-            repository.saveBlocks(listOf(updated))
+            repository.saveBlocks(listOf(block.copy(isChecked = isChecked)))
         }
     }
+
     private fun removeNote(noteId: String) {
         viewModelScope.launch {
             repository.deleteNoteById(noteId)

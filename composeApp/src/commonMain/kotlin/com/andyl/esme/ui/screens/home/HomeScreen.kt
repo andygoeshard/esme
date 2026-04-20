@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,10 +60,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.domain.model.EsmeBlock
+import com.andyl.esme.domain.model.EsmeNote
 import com.andyl.esme.ui.screens.home.components.HomeNoteItem
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToEditor: (String?) -> Unit
@@ -74,7 +75,7 @@ fun HomeScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is HomeEffect.NavigateToEditor -> onNavigateToEditor(effect.id)
-                is HomeEffect.ShowError -> { /* Podés meter un Toast acá si querés */ }
+                is HomeEffect.ShowError -> {}
             }
         }
     }
@@ -82,57 +83,13 @@ fun HomeScreen(
     Scaffold(
         containerColor = Color(0xFF0B120E),
         topBar = {
-            TopAppBar(
-                title = {
-                    if (state.isSearchVisible) {
-                        TextField(
-                            value = state.searchQuery,
-                            onValueChange = { viewModel.handleIntent(HomeIntent.UpdateSearchQuery(it)) },
-                            placeholder = { Text("Buscar en el cerebro...", color = Color.Gray, fontSize = 16.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = Color(0xFF50C878),
-                                focusedTextColor = Color.White
-                            ),
-                            singleLine = true
-                        )
-                    } else {
-                        Column {
-                            Text(
-                                "Mis Notas",
-                                color = Color.White,
-                                style = TextStyle(
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = (-1).sp
-                                )
-                            )
-                            if (state.notes.isNotEmpty()) {
-                                Text(
-                                    "${state.notes.size} notas",
-                                    color = Color(0xFF50C878).copy(0.6f),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
+            HomeTopBar(
+                state = state,
+                onSearchChange = {
+                    viewModel.handleIntent(HomeIntent.UpdateSearchQuery(it))
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                actions = {
-                    IconButton(onClick = {
-                        viewModel.handleIntent(HomeIntent.ToggleSearch(!state.isSearchVisible))
-                    }) {
-                        Icon(
-                            imageVector = if (state.isSearchVisible) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = "Buscar",
-                            tint = Color.White
-                        )
-                    }
+                onToggleSearch = {
+                    viewModel.handleIntent(HomeIntent.ToggleSearch(!state.isSearchVisible))
                 }
             )
         },
@@ -142,82 +99,170 @@ fun HomeScreen(
                 containerColor = Color(0xFF50C878),
                 contentColor = Color.Black,
                 icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Nueva Nota", fontWeight = FontWeight.Bold) }
+                text = { Text("Nueva Nota") }
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isLoading) {
+        HomeContent(
+            modifier = Modifier.padding(padding),
+            state = state,
+            onOpenNote = onNavigateToEditor,
+            onDelete = {
+                viewModel.handleIntent(HomeIntent.DeleteNote(it))
+            },
+            onToggleTask = { block, checked ->
+                viewModel.handleIntent(HomeIntent.ToggleTask(block, checked))
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeTopBar(
+    state: HomeState,
+    onSearchChange: (String) -> Unit,
+    onToggleSearch: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            if (state.isSearchVisible) {
+                TextField(
+                    value = state.searchQuery,
+                    onValueChange = onSearchChange,
+                    placeholder = { Text("Buscar...") },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        cursorColor = Color(0xFF50C878),
+                        focusedTextColor = Color.White
+                    )
+                )
+            } else {
+                Column {
+                    Text("Mis Notas", color = Color.White, fontWeight = FontWeight.Black)
+                    Text("${state.notes.size} notas", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
+        },
+        actions = {
+            IconButton(onClick = onToggleSearch) {
+                Icon(
+                    imageVector = if (state.isSearchVisible) Icons.Default.Close else Icons.Default.Search,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+    )
+}
+
+@Composable
+fun HomeContent(
+    modifier: Modifier,
+    state: HomeState,
+    onOpenNote: (String?) -> Unit,
+    onDelete: (String) -> Unit,
+    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+
+        when {
+            state.isLoading -> {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
                     color = Color(0xFF50C878)
                 )
-            } else if (state.notes.isEmpty()) {
+            }
 
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = if (state.searchQuery.isEmpty()) Icons.Default.Add else Icons.Default.Search,
-                        contentDescription = null,
-                        tint = Color.Gray.copy(0.3f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = if (state.searchQuery.isEmpty()) "Esme está vacía." else "No se encontró nada.",
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            } else {
-                LazyVerticalStaggeredGrid(
-                    columns = StaggeredGridCells.Adaptive(minSize = 170.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalItemSpacing = 12.dp
-                ) {
-                    items(
-                        state.notes,
-                        key = { noteWithBlocks ->
-                            noteWithBlocks.id + noteWithBlocks.blocks.hashCode()
-                        }
-                    ) { item ->
-                        HomeNoteItem(
-                            modifier = Modifier.animateItem(),
-                            item = item,
-                            onClick = { onNavigateToEditor(item.id) },
-                            onDelete = { viewModel.handleIntent(HomeIntent.DeleteNote(item.id)) }
-                        )
-                    }
-                    if (!state.isSearchVisible) {
-                    val pendingTasks = state.notes
-                        .flatMap { it.blocks }
-                        .filterIsInstance<EsmeBlock.Todo>()
-                        .filter { !it.isChecked }
+            state.notes.isEmpty() -> {
+                EmptyState(state.searchQuery)
+            }
 
-                    if (pendingTasks.isNotEmpty()) {
-                        item(span = StaggeredGridItemSpan.FullLine) {
-                            TaskDashboard(
-                                tasks = pendingTasks,
-                                onToggle = { block, isChecked ->
-                                    viewModel.handleIntent(HomeIntent.ToggleTask(block, isChecked))
-                                }
-                            )
-                        }
-                    }
-                }
-                    if (!state.isSearchVisible && state.totalExpenses > 0.0) {
-                        item(span = StaggeredGridItemSpan.FullLine) {
-                            DashboardCard(total = state.totalExpenses)
-                        }
-                    }
-
-                }
+            else -> {
+                NotesGrid(
+                    notes = state.notes,
+                    showDashboard = !state.isSearchVisible,
+                    totalExpenses = state.totalExpenses,
+                    onOpenNote = onOpenNote,
+                    onDelete = onDelete,
+                    onToggleTask = onToggleTask
+                )
             }
         }
+    }
+}
+
+@Composable
+fun NotesGrid(
+    notes: List<EsmeNote>,
+    showDashboard: Boolean,
+    totalExpenses: Double,
+    onOpenNote: (String?) -> Unit,
+    onDelete: (String) -> Unit,
+    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit
+) {
+    val pendingTasks = remember(notes) {
+        notes.flatMap { it.blocks }
+            .filterIsInstance<EsmeBlock.Todo>()
+            .filter { !it.isChecked }
+    }
+
+    LazyVerticalStaggeredGrid(
+        columns = StaggeredGridCells.Adaptive(170.dp),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalItemSpacing = 12.dp
+    ) {
+
+        items(
+            notes,
+            key = { it.id } // 🔥 clave simple y correcta
+        ) { note ->
+            HomeNoteItem(
+                modifier = Modifier.animateItem(),
+                item = note,
+                onClick = { onOpenNote(note.id) },
+                onDelete = { onDelete(note.id) }
+            )
+        }
+
+        if (showDashboard && pendingTasks.isNotEmpty()) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                TaskDashboard(pendingTasks, onToggleTask)
+            }
+        }
+
+        if (showDashboard && totalExpenses > 0.0) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                DashboardCard(totalExpenses)
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyState(query: String) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = if (query.isEmpty()) Icons.Default.Add else Icons.Default.Search,
+            contentDescription = null,
+            tint = Color.Gray.copy(0.3f),
+            modifier = Modifier.size(64.dp)
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = if (query.isEmpty()) "Esme está vacía." else "No se encontró nada.",
+            color = Color.Gray
+        )
     }
 }
 
