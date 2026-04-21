@@ -10,6 +10,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.andyl.esme.ui.screens.editor.EditorScreen
 import com.andyl.esme.ui.screens.home.HomeScreen
+import com.andyl.esme.ui.screens.tag.TagScreen
 
 @Composable
 fun App() {
@@ -23,7 +24,8 @@ fun App() {
                 when (route) {
                     is HomeRoute -> NavEntry<Route>(route) {
                         HomeScreen(
-                            onNavigateToEditor = { id -> backStack.add(EditorRoute(id)) }
+                            onNavigateToEditor = { id -> backStack.add(EditorRoute(id)) },
+                            onNavigateToTag = { tag -> backStack.add(TagRoute(tag)) }
                         )
                     }
                     is EditorRoute -> NavEntry<Route>(route) {
@@ -31,6 +33,18 @@ fun App() {
                             noteId = route.noteId,
                             onBack = { backStack.removeLastOrNull() },
                             onNavigateToNote = { id -> backStack.add(EditorRoute(id)) }
+                        )
+                    }
+                    is TagRoute -> NavEntry<Route>(route) {
+                        TagScreen(
+                            tag = route.tag,
+                            onOpenNote = { id ->
+                                backStack.add(EditorRoute(id))
+                            },
+                            onBack = { backStack.removeLastOrNull() },
+                            onNavigateToTag = { tag ->
+                                backStack.add(TagRoute(tag))
+                            }
                         )
                     }
                 }

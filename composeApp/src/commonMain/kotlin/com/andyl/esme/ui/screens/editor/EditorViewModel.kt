@@ -32,8 +32,6 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
 
     private val _effect = Channel<EditorEffect>()
     val effect = _effect.receiveAsFlow()
-    private var observeJob: Job? = null
-
 
     init {
         viewModelScope.launch {

@@ -26,6 +26,26 @@ object EsmeBlockEngine {
                 )
             }
 
+            input.startsWith("/todo") ->{
+                EsmeBlock.Todo(
+                    id,
+                    noteId,
+                    order,
+                    input.removePrefix("/todo"),
+                    false
+                )
+            }
+
+            input.startsWith("/hacer") ->{
+                EsmeBlock.Todo(
+                    id,
+                    noteId,
+                    order,
+                    input.removePrefix("/hacer"),
+                    false
+                )
+            }
+
             // --- PRIORITY ---
             input.startsWith("!!! ") -> {
                 EsmeBlock.Priority(
@@ -87,3 +107,4 @@ object EsmeBlockEngine {
         }
     }
 }
+

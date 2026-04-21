@@ -4,6 +4,8 @@ import com.andyl.esme.data.local.database.EsmeDatabase
 import com.andyl.esme.data.repository.NoteRepository
 import com.andyl.esme.ui.screens.editor.EditorViewModel
 import com.andyl.esme.ui.screens.home.HomeViewModel
+import com.andyl.esme.ui.screens.tag.TagViewModel
+import com.andyl.esme.ui.screens.tag.helper.TagGraphBuilder
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -27,8 +29,11 @@ val commonModule = module {
 
     single { NoteRepository(get(), get()) }
 
+    single { TagGraphBuilder() }
+
     factory { HomeViewModel(get()) }
     factory { EditorViewModel(get()) }
+    factory { TagViewModel(get(), get()) }
 }
 
 expect val platformModule: Module

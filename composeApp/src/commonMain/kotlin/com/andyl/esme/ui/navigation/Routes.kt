@@ -14,6 +14,8 @@ sealed interface Route : NavKey
 data object HomeRoute : Route
 
 @Serializable
+data class TagRoute(val tag: String) : Route
+@Serializable
 data class EditorRoute(val noteId: String? = null) : Route
 
 val navConfig = SavedStateConfiguration {

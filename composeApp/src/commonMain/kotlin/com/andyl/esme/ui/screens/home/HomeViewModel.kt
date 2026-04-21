@@ -8,6 +8,8 @@ import com.andyl.esme.data.local.model.NoteWithBlocks
 import com.andyl.esme.data.repository.NoteRepository
 import com.andyl.esme.domain.model.EsmeBlock
 import com.andyl.esme.domain.model.EsmeNote
+import com.andyl.esme.domain.model.extractTags
+import com.andyl.esme.domain.model.getSearchableText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +67,19 @@ class HomeViewModel(
             }
 
             is HomeIntent.ToggleTask -> toggleTask(intent.block, intent.isChecked)
+            is HomeIntent.SearchByTag -> {
+                _state.update {
+                    it.copy(
+                        isSearchVisible = true,
+                        searchQuery = intent.tag
+                    )
+                }
+            }
+            is HomeIntent.OpenTag -> {
+                viewModelScope.launch {
+                    _effect.send(HomeEffect.NavigateToTag(intent.tag))
+                }
+            }
         }
     }
 
@@ -77,6 +92,7 @@ class HomeViewModel(
                 .distinctUntilChanged()
         ) { notes, query ->
 
+
             val filtered = filterNotes(notes, query)
             val totalExpenses = calculateExpenses(notes)
 
@@ -84,14 +100,29 @@ class HomeViewModel(
         }
             .onStart { _state.update { it.copy(isLoading = true) } }
             .onEach { (notes, total) ->
+                val metaTags = notes
+                    .flatMap { it.blocks }
+                    .flatMap { it.extractTags() }
+                    .groupingBy { it }
+                    .eachCount()
+                    .map {
+                        if (it.key.startsWith("#"))
+                            MetaTag.Hashtag(it.key, it.value)
+                        else
+                            MetaTag.Mention(it.key, it.value)
+                    }
+                    .sortedByDescending { it.count }
+
                 _state.update {
                     it.copy(
                         notes = notes,
                         totalExpenses = total,
-                        isLoading = false
+                        isLoading = false,
+                        metaTags = metaTags
                     )
                 }
             }
+
             .catch {
                 _state.update { it.copy(isLoading = false) }
                 _effect.send(HomeEffect.ShowError("Error cargando notas"))
@@ -106,12 +137,18 @@ class HomeViewModel(
     private fun filterNotes(
         notes: List<EsmeNote>,
         query: String
-    ): List<EsmeNote>{
+    ): List<EsmeNote> {
+
         if (query.isBlank()) return notes
 
+        val q = query.lowercase()
+
         return notes.filter { note ->
-            note.title.contains(query, true) ||
-                    note.blocks.any { blockMatchesQuery(it, query) }
+            note.title.contains(q, true) ||
+                    note.blocks.any { block ->
+                        block.getSearchableText().contains(q, true) ||
+                                block.extractTags().any { it.contains(q, true) }
+                    }
         }
     }
 
@@ -169,5 +206,37 @@ class HomeViewModel(
         viewModelScope.launch {
             repository.deleteNoteById(noteId)
         }
+    }
+
+    private fun extractMetaTags(notes: List<EsmeNote>): List<MetaTag> {
+        val hashtagRegex = Regex("#[a-zA-Z0-9_-]+")
+        val mentionRegex = Regex("@[a-zA-Z0-9_-]+")
+
+        val contents = notes
+            .flatMap { it.blocks }
+            .mapNotNull { block ->
+                when (block) {
+                    is EsmeBlock.Text -> block.content
+                    is EsmeBlock.Todo -> block.content
+                    is EsmeBlock.Priority -> block.content
+                    is EsmeBlock.Quote -> block.content
+                    else -> null
+                }
+            }
+
+        val hashtags = contents
+            .flatMap { hashtagRegex.findAll(it).map { it.value.lowercase() } }
+            .groupingBy { it }
+            .eachCount()
+            .map { MetaTag.Hashtag(it.key, it.value) }
+
+        val mentions = contents
+            .flatMap { mentionRegex.findAll(it).map { it.value.lowercase() } }
+            .groupingBy { it }
+            .eachCount()
+            .map { MetaTag.Mention(it.key, it.value) }
+
+        return (hashtags + mentions)
+            .sortedByDescending { it.count }
     }
 }

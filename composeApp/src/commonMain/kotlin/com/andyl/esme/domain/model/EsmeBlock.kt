@@ -38,3 +38,25 @@ sealed interface EsmeBlock {
 
 enum class PriorityLevel { LOW, MEDIUM, HIGH }
 enum class TimerState { IDLE, RUNNING, PAUSED, FINISHED }
+
+fun EsmeBlock.getSearchableText(): String {
+    return when (this) {
+        is EsmeBlock.Text -> content
+        is EsmeBlock.Todo -> content
+        is EsmeBlock.Priority -> content
+        is EsmeBlock.Quote -> content
+        is EsmeBlock.Bullet -> content
+        is EsmeBlock.Code -> content
+        is EsmeBlock.Expense -> description
+        else -> ""
+    }
+}
+
+fun EsmeBlock.extractTags(): List<String> {
+    val regex = Regex("(@[a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)")
+
+    return regex
+        .findAll(getSearchableText())
+        .map { it.value.lowercase() }
+        .toList()
+}

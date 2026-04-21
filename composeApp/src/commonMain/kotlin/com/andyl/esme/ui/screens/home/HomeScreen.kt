@@ -2,9 +2,12 @@ package com.andyl.esme.ui.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,16 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -35,10 +34,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -58,7 +55,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.andyl.esme.data.local.entity.BlockEntity
 import com.andyl.esme.domain.model.EsmeBlock
 import com.andyl.esme.domain.model.EsmeNote
 import com.andyl.esme.ui.screens.home.components.HomeNoteItem
@@ -66,7 +62,8 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun HomeScreen(
-    onNavigateToEditor: (String?) -> Unit
+    onNavigateToEditor: (String?) -> Unit,
+    onNavigateToTag: (String) -> Unit
 ) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -75,7 +72,8 @@ fun HomeScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is HomeEffect.NavigateToEditor -> onNavigateToEditor(effect.id)
-                is HomeEffect.ShowError -> {}
+                is HomeEffect.NavigateToTag -> onNavigateToTag(effect.tag)
+                else -> Unit
             }
         }
     }
@@ -112,6 +110,9 @@ fun HomeScreen(
             },
             onToggleTask = { block, checked ->
                 viewModel.handleIntent(HomeIntent.ToggleTask(block, checked))
+            },
+            onTagClick = { tag ->
+                viewModel.handleIntent(HomeIntent.OpenTag(tag))
             }
         )
     }
@@ -165,7 +166,8 @@ fun HomeContent(
     state: HomeState,
     onOpenNote: (String?) -> Unit,
     onDelete: (String) -> Unit,
-    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit
+    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit,
+    onTagClick: (String) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
 
@@ -188,7 +190,11 @@ fun HomeContent(
                     totalExpenses = state.totalExpenses,
                     onOpenNote = onOpenNote,
                     onDelete = onDelete,
-                    onToggleTask = onToggleTask
+                    onToggleTask = onToggleTask,
+                    metaTags = state.metaTags,
+                    onTagClick = { tag ->
+                        onTagClick(tag)
+                    }
                 )
             }
         }
@@ -199,10 +205,12 @@ fun HomeContent(
 fun NotesGrid(
     notes: List<EsmeNote>,
     showDashboard: Boolean,
+    metaTags: List<MetaTag>,
     totalExpenses: Double,
     onOpenNote: (String?) -> Unit,
     onDelete: (String) -> Unit,
-    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit
+    onToggleTask: (EsmeBlock.Todo, Boolean) -> Unit,
+    onTagClick: (String) -> Unit
 ) {
     val pendingTasks = remember(notes) {
         notes.flatMap { it.blocks }
@@ -219,7 +227,7 @@ fun NotesGrid(
 
         items(
             notes,
-            key = { it.id } // 🔥 clave simple y correcta
+            key = { it.id }
         ) { note ->
             HomeNoteItem(
                 modifier = Modifier.animateItem(),
@@ -238,6 +246,15 @@ fun NotesGrid(
         if (showDashboard && totalExpenses > 0.0) {
             item(span = StaggeredGridItemSpan.FullLine) {
                 DashboardCard(totalExpenses)
+            }
+        }
+
+        if (showDashboard && metaTags.isNotEmpty()) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                MetaTagDashboard(
+                    metaTags = metaTags,
+                    onClick = onTagClick
+                )
             }
         }
     }
@@ -397,5 +414,75 @@ fun TaskDashboard(
                 )
             }
         }
+    }
+}
+
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MetaTagDashboard(
+    metaTags: List<MetaTag>,
+    onClick: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF16201A)),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            Text(
+                "Tags",
+                color = Color.White.copy(0.7f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                metaTags.take(15).forEach { tag ->
+                    MetaTagChip(tag, onClick)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MetaTagChip(
+    tag: MetaTag,
+    onClick: (String) -> Unit
+) {
+    val color = when (tag) {
+        is MetaTag.Hashtag -> Color(0xFF50C878)
+        is MetaTag.Mention -> Color(0xFF4FC3F7)
+    }
+
+    Row(
+        modifier = Modifier
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
+            .clickable { onClick(tag.value) }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+
+        Text(
+            text = tag.value,
+            color = Color.White
+        )
+
+        Spacer(Modifier.width(6.dp))
+
+        Text(
+            text = tag.count.toString(),
+            color = color,
+            fontSize = 11.sp
+        )
     }
 }
