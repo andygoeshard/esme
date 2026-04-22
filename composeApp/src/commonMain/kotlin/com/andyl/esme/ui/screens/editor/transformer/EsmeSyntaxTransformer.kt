@@ -39,7 +39,7 @@ class EsmeSyntaxTransformer(
 
             // --- MENCIONES @andy ---
             Regex("@[a-zA-Z0-9_-]+").findAll(originalText).forEach { result ->
-                val mention = result.value.removePrefix("@")
+                val mention = result.value
                 applyClickableStyle(
                     tag = "MENTION",
                     annotation = mention,
@@ -52,7 +52,7 @@ class EsmeSyntaxTransformer(
 
             // --- HASHTAGS #esme ---
             Regex("#[a-zA-Z0-9_-]+").findAll(originalText).forEach { result ->
-                val hashtag = result.value.removePrefix("#")
+                val hashtag = result.value
                 applyClickableStyle(
                     tag = "HASHTAG",
                     annotation = hashtag,

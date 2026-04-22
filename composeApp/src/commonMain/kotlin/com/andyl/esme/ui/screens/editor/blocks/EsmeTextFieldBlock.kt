@@ -39,10 +39,8 @@ fun EsmeTextFieldBlock(
     onDeleteIfEmpty: () -> Unit,
     transformer: VisualTransformation,
     onFocusChanged: (Boolean) -> Unit,
-    forceCursorToEnd: Boolean
+    forceCursorToEnd: Boolean,
 ) {
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-
     EsmeBaseTextField(
         blockId = blockId,
         content = content,
@@ -53,7 +51,6 @@ fun EsmeTextFieldBlock(
             onNextBlock(cursor)
         },
         visualTransformation = transformer,
-        onTextLayout = { textLayoutResult = it },
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Sentences,
             imeAction = ImeAction.Next
@@ -63,36 +60,7 @@ fun EsmeTextFieldBlock(
             fontSize = 16.sp,
             lineHeight = 22.sp
         ),
-        modifier = modifier
-            .fillMaxWidth()
-            .pointerInput(blockId, content, textLayoutResult) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val down = event.changes.find { it.pressed }
-
-                        if (down != null) {
-                            val layout = textLayoutResult ?: continue
-
-                            val offset = layout.getOffsetForPosition(down.position)
-
-                            val transformed = transformer
-                                .filter(AnnotatedString(content))
-                                .text
-
-                            transformed.getLinkAnnotations(offset, offset)
-                                .firstOrNull()
-                                ?.let { annotation ->
-                                    val clickable = annotation.item as? LinkAnnotation.Clickable
-                                    if (clickable != null) {
-                                        down.consume()
-                                        clickable.linkInteractionListener?.onClick(clickable)
-                                    }
-                                }
-                        }
-                    }
-                }
-            },
+        modifier = modifier.fillMaxWidth(),
         onFocusChangedExternal = onFocusChanged,
         forceCursorToEnd = forceCursorToEnd,
     )

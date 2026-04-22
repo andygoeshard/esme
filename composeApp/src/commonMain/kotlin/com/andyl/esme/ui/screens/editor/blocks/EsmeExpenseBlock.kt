@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
 
@@ -33,7 +34,8 @@ fun EsmeExpenseBlock(
     onAmountChange: (Double) -> Unit,
     onDelete: () -> Unit,
     onFocusChanged: (Boolean) -> Unit,
-    forceCursorToEnd: Boolean
+    forceCursorToEnd: Boolean,
+    visualTransformation: VisualTransformation,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -53,7 +55,8 @@ fun EsmeExpenseBlock(
             modifier = modifier.weight(1f),
             style = TextStyle(color = Color.White),
             onFocusChangedExternal = onFocusChanged,
-            forceCursorToEnd = forceCursorToEnd
+            forceCursorToEnd = forceCursorToEnd,
+            visualTransformation = visualTransformation,
         )
 
         TextField(

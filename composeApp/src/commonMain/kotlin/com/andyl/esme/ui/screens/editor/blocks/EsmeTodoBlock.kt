@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,7 +34,8 @@ fun EsmeTodoBlock(
     isChecked: Boolean,
     onContentChange: (String) -> Unit,
     onCheckedChange: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -63,7 +65,8 @@ fun EsmeTodoBlock(
                 color = if (isChecked) Color.Gray else Color.White,
                 fontSize = 18.sp,
                 textDecoration = if (isChecked) TextDecoration.LineThrough else null
-            )
+            ),
+            visualTransformation = visualTransformation
         )
 
         IconButton(onClick = onDelete) {

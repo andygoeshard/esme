@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +35,6 @@ import com.andyl.esme.ui.screens.editor.blocks.EsmeTextFieldBlock
 import com.andyl.esme.ui.screens.editor.blocks.EsmeTodoBlock
 import com.andyl.esme.ui.screens.editor.components.EsmeToolbar
 import com.andyl.esme.ui.screens.editor.transformer.EsmeSyntaxTransformer
-import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -45,7 +43,8 @@ import kotlin.uuid.ExperimentalUuidApi
 fun EditorScreen(
     noteId: String? = null,
     onBack: () -> Unit,
-    onNavigateToNote: (String) -> Unit
+    onNavigateToNote: (String) -> Unit,
+    onNavigateToTag: (String) -> Unit
 ) {
     val viewModel = koinViewModel<EditorViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -55,9 +54,15 @@ fun EditorScreen(
 
     val syntaxTransformer = remember {
         EsmeSyntaxTransformer(
-            onLinkClick = { linkTitle -> viewModel.handleIntent(EditorIntent.OpenLink(linkTitle)) },
-            onHashtagClick = { tag -> viewModel.handleIntent(EditorIntent.SearchHashtag(tag)) },
-            onMentionClick = { user -> viewModel.handleIntent(EditorIntent.SearchMention(user)) }
+            onLinkClick = { linkTitle ->
+                viewModel.handleIntent(EditorIntent.OpenLink(linkTitle))
+            },
+            onHashtagClick = { tag ->
+                onNavigateToTag(tag)
+            },
+            onMentionClick = { user ->
+                onNavigateToTag(user)
+            }
         )
     }
 
@@ -261,28 +266,42 @@ fun EditorScreen(
                                 is EsmeBlock.Text -> EsmeTextFieldBlock(
                                     content = block.content,
                                     blockId = block.id,
-                                    onContentChange = { viewModel.handleIntent(EditorIntent.UpdateContent(block.id, it)) },
+                                    onContentChange = {
+                                        viewModel.handleIntent(
+                                            EditorIntent.UpdateContent(
+                                                block.id,
+                                                it
+                                            )
+                                        )
+                                    },
                                     onNextBlock = { cursor ->
                                         viewModel.handleIntent(
                                             EditorIntent.OnEnter(block.id, cursor)
                                         )
                                     },
-                                    onDeleteIfEmpty = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) },
+                                    onDeleteIfEmpty = {
+                                        viewModel.handleIntent(
+                                            EditorIntent.DeleteBlock(
+                                                block.id
+                                            )
+                                        )
+                                    },
                                     transformer = syntaxTransformer,
                                     onFocusChanged = { isFocused ->
                                         if (isFocused) {
                                             currentUiFocusedId = block.id
                                         }
                                     },
-                                    forceCursorToEnd = shouldFocus && isLast
-                                    )
+                                    forceCursorToEnd = shouldFocus && isLast,
+                                )
                                 is EsmeBlock.Todo -> EsmeTodoBlock(
                                     content = block.content,
                                     blockId = block.id,
                                     isChecked = block.isChecked,
                                     onContentChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(content = it))) },
                                     onCheckedChange = { viewModel.handleIntent(EditorIntent.UpdateBlock(block.copy(isChecked = it))) },
-                                    onDelete = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) }
+                                    onDelete = { viewModel.handleIntent(EditorIntent.DeleteBlock(block.id)) },
+                                    visualTransformation = syntaxTransformer
                                 )
                                 is EsmeBlock.Priority -> EsmePriorityBlock(
                                     blockId = block.id,
@@ -292,6 +311,7 @@ fun EditorScreen(
                                         if (isFocused) currentUiFocusedId = block.id
                                     },
                                     forceCursorToEnd = shouldFocus && isLast,
+                                    visualTransformation = syntaxTransformer
                                 )
                                 is EsmeBlock.Expense -> EsmeExpenseBlock(
                                     label = block.description,
@@ -304,6 +324,7 @@ fun EditorScreen(
                                         if (isFocused) currentUiFocusedId = block.id
                                     },
                                     forceCursorToEnd = shouldFocus && isLast,
+                                    visualTransformation = syntaxTransformer
                                 )
                                 is EsmeBlock.Quote -> EsmeQuoteBlock(
                                     content = block.content,
@@ -313,6 +334,7 @@ fun EditorScreen(
                                         if (isFocused) currentUiFocusedId = block.id
                                     },
                                     forceCursorToEnd = shouldFocus && isLast,
+                                    visualTransformation = syntaxTransformer
                                 )
                                 is EsmeBlock.Divider -> HorizontalDivider(
                                     color = Color(0xFF50C878).copy(0.3f),

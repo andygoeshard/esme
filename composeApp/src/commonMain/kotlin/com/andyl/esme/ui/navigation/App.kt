@@ -32,7 +32,8 @@ fun App() {
                         EditorScreen(
                             noteId = route.noteId,
                             onBack = { backStack.removeLastOrNull() },
-                            onNavigateToNote = { id -> backStack.add(EditorRoute(id)) }
+                            onNavigateToNote = { id -> backStack.add(EditorRoute(id)) },
+                            onNavigateToTag = { tag -> backStack.add(TagRoute(tag)) } // 👈 CLAVE
                         )
                     }
                     is TagRoute -> NavEntry<Route>(route) {

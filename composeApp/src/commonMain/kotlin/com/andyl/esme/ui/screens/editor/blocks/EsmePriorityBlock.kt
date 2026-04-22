@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
@@ -31,7 +32,8 @@ fun EsmePriorityBlock(
     content: String,
     onContentChange: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
-    forceCursorToEnd: Boolean
+    forceCursorToEnd: Boolean,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     Surface(
         color = Color(0xFFFF4444).copy(alpha = 0.1f),
@@ -63,7 +65,8 @@ fun EsmePriorityBlock(
                     color = Color.White
                 ),
                 onFocusChangedExternal = onFocusChanged,
-                forceCursorToEnd = forceCursorToEnd
+                forceCursorToEnd = forceCursorToEnd,
+                visualTransformation = visualTransformation,
             )
         }
     }

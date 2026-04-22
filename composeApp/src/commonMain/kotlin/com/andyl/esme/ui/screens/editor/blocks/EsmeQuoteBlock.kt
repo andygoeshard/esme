@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.andyl.esme.ui.screens.editor.components.EsmeBaseTextField
@@ -25,7 +26,8 @@ fun EsmeQuoteBlock(
     content: String,
     onContentChange: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
-    forceCursorToEnd: Boolean
+    forceCursorToEnd: Boolean,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     Row(
         modifier = modifier
@@ -60,7 +62,8 @@ fun EsmeQuoteBlock(
                 lineHeight = 24.sp
             ),
             onFocusChangedExternal = onFocusChanged,
-            forceCursorToEnd = forceCursorToEnd
+            forceCursorToEnd = forceCursorToEnd,
+            visualTransformation = visualTransformation,
         )
     }
 }
