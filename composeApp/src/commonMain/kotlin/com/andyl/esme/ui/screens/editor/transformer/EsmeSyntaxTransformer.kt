@@ -72,10 +72,27 @@ class EsmeSyntaxTransformer(
                 )
             }
 
-            // --- SMART TOKENS //hoy y //hora ---
-            Regex("//hoy|//hora").findAll(originalText).forEach { result ->
+            // --- SMART TOKEN OUTPUTS ( 'valor' ) ---
+            Regex("'([^']+)'").findAll(originalText).forEach { result ->
+                val value = result.groupValues[1]
+
+                applyClickableStyle(
+                    tag = "SMART",
+                    annotation = value,
+                    start = result.range.first,
+                    end = result.range.last + 1,
+                    color = Color(0xFF50C878),
+                    onClick = { /* lo que quieras */ }
+                )
+            }
+
+            // --- FECHAS (resultado de //hoy) ---
+            Regex("\\b\\d{1,2}/\\d{1,2}\\b").findAll(originalText).forEach { result ->
                 addStyle(
-                    style = SpanStyle(color = Color(0xFF50C878), background = Color(0xFF50C878).copy(0.1f)),
+                    style = SpanStyle(
+                        color = Color(0xFF50C878),
+                        fontWeight = FontWeight.Bold
+                    ),
                     start = result.range.first,
                     end = result.range.last + 1
                 )

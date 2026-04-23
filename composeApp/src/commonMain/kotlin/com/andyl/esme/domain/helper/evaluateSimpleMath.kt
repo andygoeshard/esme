@@ -1,6 +1,7 @@
 package com.andyl.esme.domain.helper
 
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
@@ -32,13 +33,23 @@ fun evaluateSimpleMath(expr: String): String {
 fun processSmartTokens(input: String): String {
     var output = input
 
-    if (output.contains("//hoy")) {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val dateStr = "${now.dayOfMonth}/${now.monthNumber}"
-        output = output.replace("//hoy", dateStr)
+    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+
+    val tokenMap = mapOf(
+        "//hoy" to "${now.day}/${now.month.number}",
+        "//hora" to "${now.hour}:${now.minute.toString().padStart(2, '0')}",
+        "//ahora" to "${now.hour}:${now.minute.toString().padStart(2, '0')}",
+        "//año" to now.year.toString(),
+        "//mes" to now.month.number.toString(),
+        "//dia" to now.day.toString()
+    )
+
+    tokenMap.forEach { (token, value) ->
+        val regex = Regex("${Regex.escape(token)}(?=\\s|\$)")
+        output = output.replace(regex, "'$value'")
     }
 
-    // 2. Calculadora: (10+10)= -> 20
+    // --- CALCULADORA (la dejamos como está) ---
     val calcRegex = Regex("""\(([\d\. ]+[\+\-\*\/][\d\. ]+)\)=""")
     calcRegex.findAll(output).forEach { match ->
         val expression = match.groups[1]?.value ?: ""

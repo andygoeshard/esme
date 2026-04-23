@@ -62,7 +62,15 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
             }
 
             is EditorIntent.UpdateContent -> {
-                val processedContent = processSmartTokens(intent.newContent)
+                val newContent = intent.newContent
+
+                val shouldProcess = Regex("//[a-zA-Z]+\\s$").containsMatchIn(newContent)
+
+                val processedContent = if (shouldProcess) {
+                    processSmartTokens(newContent)
+                } else {
+                    newContent
+                }
 
                 if (processedContent.contains("\n")) {
                     handlePaste(intent.blockId, processedContent)
@@ -126,30 +134,6 @@ class EditorViewModel(private val repository: NoteRepository) : ViewModel() {
                 } else block
             }
             current.copy(blocks = reindex(newBlocks))
-        }
-    }
-    private fun addNewBlock(afterBlockId: String) {
-        val noteId = _state.value.id ?: return
-        val newBlockId = Uuid.random().toString()
-
-        _state.update { currentState ->
-            val index = currentState.blocks.indexOfFirst { it.id == afterBlockId }
-            val newList = currentState.blocks.toMutableList()
-
-            val newBlock = EsmeBlock.Text(
-                id = newBlockId,
-                noteId = noteId,
-                orderIndex = index + 1,
-                content = ""
-            )
-
-            if (index != -1) newList.add(index + 1, newBlock)
-            else newList.add(newBlock)
-
-            currentState.copy(
-                blocks = reindex(newList),
-                focusedBlockId = newBlockId
-            )
         }
     }
     private fun moveBlock(fromIndex: Int, toIndex: Int) {
