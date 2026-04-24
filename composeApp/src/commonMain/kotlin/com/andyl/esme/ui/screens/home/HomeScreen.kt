@@ -142,7 +142,7 @@ fun HomeTopBar(
                 )
             } else {
                 Column {
-                    Text("Mis Notas", color = Color.White, fontWeight = FontWeight.Black)
+                    Text("Las verdaderas", color = Color.White, fontWeight = FontWeight.Black)
                     Text("${state.notes.size} notas", color = Color.Gray, fontSize = 12.sp)
                 }
             }
