@@ -95,9 +95,15 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = { viewModel.handleIntent(HomeIntent.AddTestNote("", "")) },
                 containerColor = Color(0xFF50C878),
-                contentColor = Color.Black,
+                contentColor = Color(0xFF08100B),
+                shape = RoundedCornerShape(24.dp),
                 icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Nueva Nota") }
+                text = {
+                    Text(
+                        "Nueva nota",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             )
         }
     ) { padding ->
@@ -141,9 +147,22 @@ fun HomeTopBar(
                     )
                 )
             } else {
-                Column {
-                    Text("Las verdaderas", color = Color.White, fontWeight = FontWeight.Black)
-                    Text("${state.notes.size} notas", color = Color.Gray, fontSize = 12.sp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Esme",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 26.sp,
+                        letterSpacing = (-1).sp
+                    )
+
+                    Text(
+                        "${state.notes.size} notas vivas",
+                        color = Color(0xFF50C878).copy(.65f),
+                        fontSize = 12.sp
+                    )
                 }
             }
         },
@@ -219,9 +238,9 @@ fun NotesGrid(
     }
 
     LazyVerticalStaggeredGrid(
-        columns = StaggeredGridCells.Adaptive(170.dp),
+        columns = StaggeredGridCells.Adaptive(190.dp),
         contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalItemSpacing = 12.dp
     ) {
 
@@ -291,39 +310,60 @@ fun DashboardCard(total: Double) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF16201A)),
-        border = BorderStroke(1.dp, Color(0xFF50C878).copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF14261B)
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color(0xFF50C878).copy(.18f)
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+            Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ){
+
             Column {
+
                 Text(
-                    "Balance de Gastos",
-                    color = Color(0xFF50C878).copy(alpha = 0.6f),
-                    fontSize = 12.sp,
+                    "BALANCE",
+                    color = Color(0xFF50C878).copy(.55f),
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
+
+                Spacer(Modifier.height(8.dp))
+
                 Text(
-                    text = "$ $displayTotal",
+                    "$ $displayTotal",
                     color = Color.White,
-                    style = TextStyle(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-1).sp
-                    )
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
+
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color(0xFF50C878).copy(0.1f), RoundedCornerShape(10.dp)),
+                Modifier
+                    .size(58.dp)
+                    .background(
+                        Color(0xFF50C878).copy(.12f),
+                        RoundedCornerShape(18.dp)
+                    ),
                 contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.TrendingUp, null, tint = Color(0xFF50C878))
+            ){
+                Icon(
+                    Icons.Default.TrendingUp,
+                    null,
+                    tint = Color(0xFF50C878),
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     }
@@ -351,18 +391,20 @@ fun TaskDashboard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    "Tareas Pendientes",
-                    color = Color(0xFF50C878),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "${tasks.size}",
-                    color = Color(0xFF50C878).copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        "Pendientes",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black
+                    )
+
+                    Text(
+                        "${tasks.size} abiertas",
+                        color = Color(0xFF50C878).copy(.6f),
+                        fontSize = 11.sp
+                    )
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -371,7 +413,11 @@ fun TaskDashboard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .background(
+                            Color.White.copy(.025f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
@@ -460,29 +506,59 @@ fun MetaTagChip(
     tag: MetaTag,
     onClick: (String) -> Unit
 ) {
-    val color = when (tag) {
+
+    val color = when(tag){
         is MetaTag.Hashtag -> Color(0xFF50C878)
-        is MetaTag.Mention -> Color(0xFF4FC3F7)
+        is MetaTag.Mention -> Color(0xFF6EC6FF)
     }
 
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .clickable { onClick(tag.value) }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .background(
+                color.copy(.10f),
+                RoundedCornerShape(18.dp)
+            )
+            .clickable {
+                onClick(tag.value)
+            }
+            .padding(
+                horizontal = 12.dp,
+                vertical = 8.dp
+            )
     ) {
 
         Text(
-            text = tag.value,
-            color = Color.White
+            if(tag is MetaTag.Hashtag) "#"
+            else "@",
+            color = color,
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(Modifier.width(6.dp))
 
         Text(
-            text = tag.count.toString(),
-            color = color,
-            fontSize = 11.sp
+            tag.value.removePrefix("#").removePrefix("@"),
+            color = Color.White,
+            fontWeight = FontWeight.Medium
         )
+
+        Spacer(Modifier.width(8.dp))
+
+        Box(
+            Modifier
+                .background(
+                    color.copy(.18f),
+                    RoundedCornerShape(10.dp)
+                )
+                .padding(horizontal = 7.dp, vertical = 3.dp)
+        ){
+            Text(
+                tag.count.toString(),
+                color = color,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
